@@ -2,8 +2,6 @@
 
 All notable changes to MemStats are documented here.
 
-## [Unreleased]
-
 ## [1.1.0] - 11/10/2026
 
 New chart styles and app icons. The line chart and the lists stay the defaults.
