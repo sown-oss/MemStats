@@ -35,7 +35,7 @@
       "url": "https://memstats.chungxon.dev/",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "macOS 14 Sonoma or later",
-      "softwareVersion": "1.0.0",
+      "softwareVersion": "1.1.0",
       "downloadUrl": "https://github.com/sown-oss/MemStats/releases/latest",
       "image": "https://memstats.chungxon.dev/assets/og.png",
       "screenshot": "https://memstats.chungxon.dev/assets/demo-poster.webp",
@@ -301,7 +301,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
         <a class="btn primary" href="https://github.com/sown-oss/MemStats/releases/latest">Download for macOS</a>
         <a class="btn" href="https://github.com/sown-oss/MemStats">View on GitHub</a>
       </div>
-      <p class="note">Version 1.0.0. Requires macOS 14 Sonoma or later. Apple Silicon and Intel.</p>
+      <p class="note">Version 1.1.0. Requires macOS 14 Sonoma or later. Apple Silicon and Intel.</p>
     </div>
     <div class="shot">
       <video id="demo" autoplay muted loop playsinline width="480" height="692" poster="assets/demo-poster.webp" aria-label="MemStats popover showing a donut of memory by user, a history chart, top apps and top processes">
@@ -326,7 +326,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
       <div class="card"><span class="num">01</span><h3>Per user, not just per app</h3><p>A donut chart splits RAM by user account, so you can see at a glance who is using the memory on a shared Mac. Click a slice to filter every list below.</p></div>
       <div class="card"><span class="num">02</span><h3>Helpers grouped into apps</h3><p>Chrome, VS Code and Slack spawn dozens of helper processes. MemStats rolls them up under the parent app, so Top Apps shows what you actually launched.</p></div>
       <div class="card"><span class="num">03</span><h3>Pressure you can read</h3><p><span class="dots" aria-hidden="true"><i style="background:var(--accent)"></i><i style="background:var(--warn)"></i><i style="background:var(--crit)"></i></span>The menu bar title turns green, orange or red from the same signal Activity Monitor uses. Swap sits next to it.</p></div>
-      <div class="card"><span class="num">04</span><h3>Short, scrollable history</h3><p>See the last two minutes at a glance and scroll back through about ten. It is bounded on purpose, so the app stays light and nothing is written to disk.</p></div>
+      <div class="card"><span class="num">04</span><h3>Short, scrollable history</h3><p>See the last two minutes at a glance and scroll back through about ten, as a line chart or a heatmap. It is bounded on purpose, so the app stays light and nothing is written to disk.</p></div>
       <div class="card"><span class="num">05</span><h3>Growth hints</h3><p>If a user's memory climbs on every sample, or jumps suddenly, MemStats says so in plain words. A cheap way to spot a leak early.</p></div>
       <div class="card"><span class="num">06</span><h3>Native and quiet</h3><p>SwiftUI and AppKit, system colors, light and dark mode, VoiceOver labels. It samples less often while the popover is closed, and it never phones home.</p></div>
     </div>
@@ -337,9 +337,9 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
     <p class="sub">Click the menu bar item. Everything fits in a single 380 by 540 point window.</p>
     <div class="grid two">
       <div class="card"><h3>Top Users</h3><p>Donut of used RAM by user, with free memory and an "Unattributed Used" slice so the numbers add up to the system total.</p></div>
-      <div class="card"><h3>History</h3><p>Used RAM colored by pressure at each sample, plus a dashed line for the user you selected, swap and growth hints.</p></div>
-      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their process count. Hover for the bundle path.</p></div>
-      <div class="card"><h3>Top Processes</h3><p>User, PID, process name and memory, for everyone or only the selected user. One click opens Activity Monitor.</p></div>
+      <div class="card"><h3>History</h3><p>Used RAM colored by pressure at each sample, plus a dashed line for the user you selected, swap and growth hints. Switch to a GitHub-style heatmap with one button in the header.</p></div>
+      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their icon and process count. Hover for the bundle path, or switch to a treemap where tile size is memory.</p></div>
+      <div class="card"><h3>Top Processes</h3><p>User, PID, process name, icon and memory, for everyone or only the selected user. List or treemap, your choice. One click opens Activity Monitor.</p></div>
     </div>
   </section>
 
@@ -374,7 +374,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
     <h2>Install in a minute</h2>
     <p class="sub">MemStats is distributed outside the Mac App Store, because it needs the App Sandbox off to run <code>top</code> and read processes of other users.</p>
     <ol class="steps">
-      <li class="card"><h3>Download</h3><p>Get <code>MemStats-1.0.0.zip</code> from <a href="https://github.com/sown-oss/MemStats/releases/latest">GitHub Releases</a>.</p></li>
+      <li class="card"><h3>Download</h3><p>Get <code>MemStats</code> from <a href="https://github.com/sown-oss/MemStats/releases/latest">GitHub Releases</a>.</p></li>
       <li class="card"><h3>Move to Applications</h3><p>Unzip and drag <code>MemStats.app</code> into <code>/Applications</code>.</p></li>
       <li class="card"><h3>Open it once</h3><p>The build is ad hoc signed and not notarized yet. Use Open Anyway in System Settings, or run:</p><pre id="cmd">xattr -dr com.apple.quarantine /Applications/MemStats.app</pre><button class="copy" type="button" data-copy="cmd">Copy command</button></li>
     </ol>
@@ -402,7 +402,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
 </div>
 <footer>
   <div class="wrap">
-    <span>MemStats 1.0.0 for macOS. Made by <a class="author" href="https://github.com/chungxon">Chung Xon</a> with ❤️</span>
+    <span>MemStats for macOS. Made by <a class="author" href="https://github.com/chungxon">Chung Xon</a> with ❤️</span>
     <span><a href="https://github.com/sown-oss/MemStats">GitHub</a> &nbsp; <a href="https://github.com/sown-oss/MemStats/releases">Releases</a> &nbsp; <a href="https://github.com/sown-oss/MemStats/blob/main/CHANGELOG.md">Changelog</a> &nbsp; <a href="https://github.com/sown-oss/MemStats/blob/main/LICENSE">MIT License</a></span>
   </div>
 </footer>
