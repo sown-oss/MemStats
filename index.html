@@ -223,6 +223,14 @@ h2 { font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.02em; margin: 0 0 12p
 .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
 .num { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-bottom: 10px; display: block; }
 
+/* Screenshots */
+.features { display: grid; gap: 14px; }
+.shots { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 0; align-items: flex-start; justify-content: center; }
+.shots figure { margin: 0; flex: 0 1 366px; min-width: 0; }
+.shots.wide figure { flex-basis: 440px; }
+.shots img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.shots figcaption { margin-top: 8px; text-align: center; font-size: 13.5px; color: var(--muted); }
+
 /* Pressure legend */
 .dots { display: inline-flex; gap: 6px; vertical-align: middle; margin-right: 6px; }
 .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
@@ -335,11 +343,36 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
   <section id="how">
     <h2>One popover, four answers</h2>
     <p class="sub">Click the menu bar item. Everything fits in a single 380 by 540 point window.</p>
-    <div class="grid two">
-      <div class="card"><h3>Top Users</h3><p>Donut of used RAM by user, with free memory and an "Unattributed Used" slice so the numbers add up to the system total.</p></div>
-      <div class="card"><h3>History</h3><p>Used RAM colored by pressure at each sample, plus a dashed line for the user you selected, swap and growth hints. Switch to a GitHub-style heatmap with one button in the header.</p></div>
-      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their icon and process count. Hover for the bundle path, or switch to a treemap where tile size is memory.</p></div>
-      <div class="card"><h3>Top Processes</h3><p>User, PID, process name, icon and memory, for everyone or only the selected user. List or treemap, your choice. One click opens Activity Monitor.</p></div>
+    <div class="features">
+      <div class="card"><h3>Top Users</h3><p>Donut of used RAM by user, with free memory and an "Unattributed Used" slice so the numbers add up to the system total.</p>
+        <div class="shots">
+          <figure><img src="assets/users-all.webp" width="732" height="470" loading="lazy" decoding="async" alt="Donut chart of used RAM split by user, with 83% used in the center"><figcaption>All users</figcaption></figure>
+          <figure><img src="assets/users-selected.webp" width="732" height="470" loading="lazy" decoding="async" alt="Donut chart with one user selected, showing 79% and a Clear Filter button"><figcaption>Click a slice to filter everything below</figcaption></figure>
+        </div>
+      </div>
+      <div class="card"><h3>History</h3><p>Used RAM colored by pressure at each sample, plus a dashed line for the user you selected, swap and growth hints. Switch to a GitHub-style heatmap with one button in the header.</p>
+        <div class="shots">
+          <figure><img src="assets/history-line.webp" width="732" height="495" loading="lazy" decoding="async" alt="History line chart of used RAM colored by pressure, with a dashed line for the selected user"><figcaption>Line chart (default)</figcaption></figure>
+          <figure><img src="assets/history-heatmap.webp" width="732" height="392" loading="lazy" decoding="async" alt="History heatmap with one square per sample, green to red by pressure"><figcaption>Heatmap</figcaption></figure>
+        </div>
+      </div>
+      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their icon and process count. Hover for the bundle path, or switch to a treemap where tile size is memory.</p>
+        <div class="shots">
+          <figure><img src="assets/apps-list.webp" width="732" height="490" loading="lazy" decoding="async" alt="Top Apps list with app icons, process counts and memory"><figcaption>List</figcaption></figure>
+          <figure><img src="assets/apps-treemap.webp" width="732" height="552" loading="lazy" decoding="async" alt="Top Apps treemap where tile size is memory and red tiles grew since the last sample"><figcaption>Treemap</figcaption></figure>
+        </div>
+      </div>
+      <div class="card"><h3>Top Processes</h3><p>User, PID, process name, icon and memory, for everyone or only the selected user. List or treemap, your choice. One click opens Activity Monitor.</p>
+        <div class="shots">
+          <figure><img src="assets/processes-list.webp" width="732" height="434" loading="lazy" decoding="async" alt="Top Processes list with user, PID, icon, process name and memory"><figcaption>List</figcaption></figure>
+          <figure><img src="assets/processes-treemap.webp" width="732" height="540" loading="lazy" decoding="async" alt="Top Processes treemap with PID, memory and change since the last sample"><figcaption>Treemap</figcaption></figure>
+        </div>
+      </div>
+      <div class="card"><h3>Settings</h3><p>Theme, language, chart styles, glass background and opacity, update intervals and how many rows to show. Open it from the gear in the popover.</p>
+        <div class="shots wide">
+          <figure><img src="assets/settings.webp" width="880" height="890" loading="lazy" decoding="async" alt="MemStats Settings window with theme, language, history chart style, top apps style, top processes style and glass background"><figcaption>Settings</figcaption></figure>
+        </div>
+      </div>
     </div>
   </section>
 
