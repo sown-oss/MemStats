@@ -1,7 +1,9 @@
 # MemStats release process
 
 This project publishes a zipped macOS app through GitHub Releases. The app is currently ad hoc
-signed and not notarized, so the release must include the first-launch instructions below.
+signed and not notarized, so first launch needs the steps in `README.md` (Open Anyway, or removing
+the quarantine attribute). Those steps live in the README only: do not repeat them, or a
+`Distribution` section, in `CHANGELOG.md` or the release notes.
 
 ## 1. Prepare the release
 
@@ -9,6 +11,8 @@ signed and not notarized, so the release must include the first-launch instructi
    version, for example `1.0.0`.
 2. Update `CHANGELOG.md` with the release status and user-visible changes. Before publishing,
    replace `Unreleased` with the actual publication date.
+   List only user-visible changes (Added, Changed, Fixed). Do not copy the `Distribution` block
+   from an older entry.
 3. Update `README.md` or the planning docs if the release changes requirements or installation.
 4. Run the checks from the repository root:
 

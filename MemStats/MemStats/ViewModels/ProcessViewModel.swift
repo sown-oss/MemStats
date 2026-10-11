@@ -153,7 +153,8 @@ final class ProcessViewModel: ObservableObject {
   func change(for app: AppMemoryUsage) -> Double? {
     guard !previousProcesses.isEmpty else { return nil }
     if previousAppBytes == nil {
-      let scoped = selectedUser.map { user in previousProcesses.filter { $0.user == user } }
+      let scoped =
+        selectedUser.map { user in previousProcesses.filter { $0.user == user } }
         ?? previousProcesses
       let apps = AppMemoryAggregator.aggregate(processes: scoped, identities: previousIdentities)
       previousAppBytes = Dictionary(

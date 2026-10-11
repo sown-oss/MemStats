@@ -4,14 +4,21 @@ All notable changes to MemStats are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] - 11/10/2026
+
+New chart styles and app icons. The line chart and the lists stay the defaults.
+
 ### Added
 
-- App icons in Top Apps and Top Processes, in both the list and the treemap.
-- Optional GitHub-style heatmap for the History section. Switch with the button in the History header or the new History chart style setting; the line chart stays the default.
-- Optional treemap for Top Apps and Top Processes, switched separately by the button in each header or by the Top apps style and Top processes style settings. Tile size is memory, color is the change since the previous sample, and tiles show the name, MEM, PID and, with several users, the user. The list stays the default.
+- Optional GitHub-style heatmap for the History section. Green intensity shows how much RAM was used compared with the visible samples, and warning and critical samples use orange and red. Switch with the button in the History header or the History chart style setting.
+- Optional treemap for Top Apps and Top Processes, switched separately with the button in each header or the Top apps style and Top processes style settings. Tile size is memory and tile color is the change since the previous sample (red higher, green lower). Tiles show the name, MEM, PID and, when the rows come from several users, the user.
+- App icons in Top Apps and Top Processes, in both the lists and the treemap. Processes use the icon of the app they belong to.
+- Sample counts in the section headers, for example History (120), Top Apps (8) and Top Processes (8).
+- Localization of the new options in German, Spanish, French, Japanese, Korean, Simplified Chinese and Vietnamese.
 
 ### Changed
 
+- Removed the History Samples row. The count now shows in the History header.
 - Moved the repository to `sown-oss/MemStats`. Check for Updates, Report a Bug and Support now open the new location. Old `chungxon/MemStats` links still redirect.
 
 ## [1.0.0] - 06/10/2026
