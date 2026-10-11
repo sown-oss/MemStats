@@ -594,6 +594,17 @@ struct MemStatsTests {
     #expect(tile.visibleDetails(lineCount: 0).isEmpty)
   }
 
+  @MainActor @Test func processViewModelResolvesIconPathFromAppIdentity() {
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let vm = ProcessViewModel()
+    let known = ProcessSnapshot(user: "bob", pid: 1, rssBytes: 10, command: "A")
+    let unknown = ProcessSnapshot(user: "bob", pid: 2, rssBytes: 10, command: "B")
+    vm.apply(snapshots: [known, unknown], appIdentities: [1: app])
+
+    #expect(vm.iconPath(for: known) == "/A.app")
+    #expect(vm.iconPath(for: unknown) == nil)
+  }
+
   @MainActor @Test func processViewModelReportsChangeSincePreviousSample() {
     let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
     let vm = ProcessViewModel()

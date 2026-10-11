@@ -406,7 +406,8 @@ struct PopoverRootView: View {
         TreemapDetail(text: MemoryFormat.size(app.bytes), priority: 0),
         TreemapDetail(text: "\(app.processCount) \(processes)", priority: 1),
       ],
-      change: processVM.change(for: app)
+      change: processVM.change(for: app),
+      iconPath: app.path
     )
   }
 
@@ -424,7 +425,8 @@ struct PopoverRootView: View {
       name: processVM.displayName(for: process),
       bytes: process.rssBytes,
       details: details,
-      change: processVM.change(for: process)
+      change: processVM.change(for: process),
+      iconPath: processVM.iconPath(for: process)
     )
   }
 
@@ -460,6 +462,7 @@ struct PopoverRootView: View {
           } else {
             HStack(spacing: 8) {
               Text("APP")
+                .padding(.leading, 22)
                 .frame(maxWidth: .infinity, alignment: .leading)
               Text("PROCS")
                 .frame(width: 50, alignment: .trailing)
@@ -473,12 +476,15 @@ struct PopoverRootView: View {
 
             ForEach(processVM.visibleApps) { app in
               HStack(spacing: 8) {
-                Text(app.name)
-                  .font(.footnote)
-                  .lineLimit(1)
-                  .truncationMode(.middle)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .help(app.path ?? app.name)
+                HStack(spacing: 6) {
+                  AppIconView(path: app.path)
+                  Text(app.name)
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(app.path ?? app.name)
 
                 Text(verbatim: String(app.processCount))
                   .font(.footnote.monospacedDigit())
@@ -543,6 +549,7 @@ struct PopoverRootView: View {
               Text("PID")
                 .frame(width: 50, alignment: .leading)
               Text("PROCESS")
+                .padding(.leading, 22)
                 .frame(maxWidth: .infinity, alignment: .leading)
               Text("MEM")
                 .frame(width: 64, alignment: .trailing)
@@ -567,12 +574,15 @@ struct PopoverRootView: View {
                   .foregroundStyle(.secondary)
                   .frame(width: 50, alignment: .leading)
 
-                Text(processVM.displayName(for: process))
-                  .font(.footnote)
-                  .lineLimit(1)
-                  .truncationMode(.middle)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .help(process.command)
+                HStack(spacing: 6) {
+                  AppIconView(path: processVM.iconPath(for: process))
+                  Text(processVM.displayName(for: process))
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(process.command)
 
                 Text(MemoryFormat.size(process.rssBytes))
                   .font(.footnote.monospacedDigit())

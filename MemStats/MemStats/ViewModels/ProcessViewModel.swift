@@ -131,6 +131,12 @@ final class ProcessViewModel: ObservableObject {
       ?? ProcessCommandName.displayName(from: process.command)
   }
 
+  /// Path to take a process's icon from: its app bundle (helpers share the app's icon), or its
+  /// executable. `nil` when the path could not be resolved.
+  func iconPath(for process: ProcessSnapshot) -> String? {
+    appIdentities[process.pid]?.path
+  }
+
   /// Fractional change in RSS since the previous sample, or `nil` for a new process.
   func change(for process: ProcessSnapshot) -> Double? {
     guard !previousProcesses.isEmpty else { return nil }

@@ -259,6 +259,12 @@ Process timer (top):                        default every 5s, setting 3-60s
 
 ---
 
+## 6a. App Icons
+
+* Top Apps rows show the app's icon before its name, and Top Processes rows show the icon of the app a process belongs to (helpers share their app's icon) before the process name. A process with no resolved path, or an app without a bundle, shows the generic executable icon
+* Icons come from `NSWorkspace` by path and are cached (`AppIconProvider`), 16 pt, hidden from VoiceOver since the row text names the app
+* The treemap shows the icon beside the name on wide tiles, and alone on tiles too small for text
+
 ## 6b. Top Lists Treemap
 
 * `Top Apps` and `Top Processes` each have their own style setting (`topAppsStyle`, `topProcessesStyle`): `List` (default) or `Treemap`. A bordered button in each header and the `Top apps style` / `Top processes style` pickers in Settings change it; the header button is overlaid so the header height does not change

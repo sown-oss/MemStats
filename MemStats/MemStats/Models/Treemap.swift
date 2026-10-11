@@ -17,6 +17,8 @@ nonisolated struct TreemapItem: Identifiable, Equatable, Sendable {
   /// Fractional change since the previous sample (0.05 = +5%). `nil` when there is no earlier
   /// sample for this item, for example a process that just started.
   let change: Double?
+  /// Bundle or executable path the tile's icon comes from.
+  var iconPath: String? = nil
 
   /// Changes smaller than this read as "no change", since RSS wobbles a little every sample.
   static let neutralThreshold = 0.005

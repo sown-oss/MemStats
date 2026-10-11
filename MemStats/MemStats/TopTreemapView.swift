@@ -81,10 +81,15 @@ private struct TreemapTile: View {
         .fill(TopTreemapView.fillColor(tone: tone))
       if size.width >= 36, lineCount >= 1 {
         VStack(spacing: 1) {
-          Text(item.name)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .truncationMode(.middle)
+          HStack(spacing: 3) {
+            if size.width >= 60 {
+              AppIconView(path: item.iconPath, size: 13)
+            }
+            Text(item.name)
+              .font(.caption.weight(.semibold))
+              .lineLimit(1)
+              .truncationMode(.middle)
+          }
           ForEach(Array(details.enumerated()), id: \.offset) { _, detail in
             Text(verbatim: detail.text)
               .font(.caption2.monospacedDigit())
@@ -94,6 +99,9 @@ private struct TreemapTile: View {
         }
         .foregroundStyle(TopTreemapView.textColor(tone: tone))
         .padding(.horizontal, 3)
+      } else if min(size.width, size.height) >= 20 {
+        // Too small for text: the icon still says which app it is.
+        AppIconView(path: item.iconPath, size: min(16, min(size.width, size.height) - 4))
       }
     }
     .frame(width: size.width, height: size.height)
