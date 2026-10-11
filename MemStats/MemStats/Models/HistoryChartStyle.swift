@@ -21,6 +21,27 @@ enum HistoryChartStyle: String, CaseIterable, Equatable, Identifiable {
   }
 }
 
+/// How Top Apps and Top Processes draw their rows.
+enum TopListStyle: String, CaseIterable, Equatable, Identifiable {
+  case list
+  case treemap
+
+  var id: Self { self }
+
+  var displayName: String {
+    switch self {
+    case .list:
+      return "List"
+    case .treemap:
+      return "Treemap"
+    }
+  }
+
+  var toggled: TopListStyle {
+    self == .list ? .treemap : .list
+  }
+}
+
 /// One heatmap square: how full RAM was, and the pressure level at that sample.
 nonisolated struct HistoryHeatmapCell: Equatable, Sendable {
   /// 1...levelCount, higher means more RAM used compared with the rest of the window.

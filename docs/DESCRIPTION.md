@@ -259,6 +259,14 @@ Process timer (top):                        default every 5s, setting 3-60s
 
 ---
 
+## 6b. Top Lists Treemap
+
+* `Top Apps` and `Top Processes` each have their own style setting (`topAppsStyle`, `topProcessesStyle`): `List` (default) or `Treemap`. A bordered button in each header and the `Top apps style` / `Top processes style` pickers in Settings change it; the header button is overlaid so the header height does not change
+* Squarified treemap of the rows the list would show (same user filter and row count). Tile area is memory (app total, or process RSS)
+* Tile text, most important first: name, MEM, then `PID n` (processes) or process count (apps), then the user. The user line only shows for processes when the visible rows come from more than one user. Lines that do not fit are dropped from the least important end; tiles too small for any text show color only. No percentage is printed on tiles
+* Tile color is the change since the previous sample: red = higher, green = lower, gray = within 0.5% or no earlier reading (new process). Strength has 3 steps, at 0.5%, 2% and 5%. For apps the earlier value is measured inside the current user filter. The key under the chart is one `Lower` to `Higher` scale with a short caption; the tooltip and VoiceOver label give name, PID, memory and user
+* Empty and loading states are the same as the list
+
 ## 7. History Chart
 
 ### Status rows
@@ -527,6 +535,8 @@ closes the popover. When the popup is open, ⌘, opens Settings directly and clo
 | Update interval (RAM, pressure, swap, menu bar, history) | 1, 2, 3, 5, 10, 15, 30, 60s | 5s |
 | Update interval for top processes (`top`) | 3, 5, 10, 15, 30, 60s | 5s |
 | History chart style | Line / Heatmap | Line |
+| Top apps style | List / Treemap | List |
+| Top processes style | List / Treemap | List |
 | Number of top apps | 5, 8, 10, 15, 20 | 8 |
 | Number of top processes | 5, 8, 10, 15, 20 | 8 |
 | Open at Login | on / off | off |

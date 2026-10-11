@@ -384,7 +384,7 @@ struct PopoverRootView: View {
           }
           .buttonStyle(.bordered)
           .controlSize(.small)
-          .help("Change chart style")
+          .help(AppLocalization.string("Change chart style", language: settings.language))
         }
     }
     .background(
@@ -392,6 +392,47 @@ struct PopoverRootView: View {
         glassEnabled: useGlassBackground,
         opacity: settings.glassOpacity
       )
+    )
+  }
+
+  private func appTreemapItem(_ app: AppMemoryUsage) -> TreemapItem {
+    let processes = AppLocalization.string(
+      app.processCount == 1 ? "process" : "processes", language: settings.language)
+    return TreemapItem(
+      id: app.id,
+      name: app.name,
+      bytes: app.bytes,
+      details: [
+        TreemapDetail(text: MemoryFormat.size(app.bytes), priority: 0),
+        TreemapDetail(text: "\(app.processCount) \(processes)", priority: 1),
+      ],
+      change: processVM.change(for: app)
+    )
+  }
+
+  /// The user line only shows when the rows come from more than one user.
+  private func processTreemapItem(_ process: ProcessSnapshot) -> TreemapItem {
+    var details = [
+      TreemapDetail(text: "PID \(process.pid)", priority: 1),
+      TreemapDetail(text: MemoryFormat.size(process.rssBytes), priority: 0),
+    ]
+    if Set(processVM.visibleProcesses.map(\.user)).count > 1 {
+      details.append(TreemapDetail(text: process.user, priority: 2))
+    }
+    return TreemapItem(
+      id: String(process.pid),
+      name: processVM.displayName(for: process),
+      bytes: process.rssBytes,
+      details: details,
+      change: processVM.change(for: process)
+    )
+  }
+
+  private var treemapScale: some View {
+    TreemapScale(
+      lowerLabel: AppLocalization.string("Lower", language: settings.language),
+      higherLabel: AppLocalization.string("Higher", language: settings.language),
+      captionLabel: AppLocalization.string("Change since last sample", language: settings.language)
     )
   }
 
@@ -410,59 +451,68 @@ struct PopoverRootView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         } else {
-          HStack(spacing: 8) {
-            Text("APP")
-              .frame(maxWidth: .infinity, alignment: .leading)
-            Text("PROCS")
-              .frame(width: 50, alignment: .trailing)
-            Text("MEM")
-              .frame(width: 64, alignment: .trailing)
-          }
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
-          .accessibilityElement(children: .combine)
-          .accessibilityAddTraits(.isHeader)
-
-          ForEach(processVM.visibleApps) { app in
+          if settings.topAppsStyle == .treemap {
+            TopTreemapView(
+              items: processVM.visibleApps.map { appTreemapItem($0) },
+              language: settings.language
+            )
+            treemapScale
+          } else {
             HStack(spacing: 8) {
-              Text(app.name)
-                .font(.footnote)
-                .lineLimit(1)
-                .truncationMode(.middle)
+              Text("APP")
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .help(app.path ?? app.name)
-
-              Text(verbatim: String(app.processCount))
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.secondary)
+              Text("PROCS")
                 .frame(width: 50, alignment: .trailing)
-
-              Text(MemoryFormat.size(app.bytes))
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.secondary)
+              Text("MEM")
                 .frame(width: 64, alignment: .trailing)
             }
-            // One VoiceOver element per row, with the column names spoken.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(
-              AppLocalization.formatted(
-                "%@, %lld %@, %@",
-                language: settings.language,
-                app.name,
-                Int64(app.processCount),
-                AppLocalization.string(
-                  app.processCount == 1 ? "process" : "processes",
-                  language: settings.language
-                ),
-                MemoryFormat.size(app.bytes)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            ForEach(processVM.visibleApps) { app in
+              HStack(spacing: 8) {
+                Text(app.name)
+                  .font(.footnote)
+                  .lineLimit(1)
+                  .truncationMode(.middle)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .help(app.path ?? app.name)
+
+                Text(verbatim: String(app.processCount))
+                  .font(.footnote.monospacedDigit())
+                  .foregroundStyle(.secondary)
+                  .frame(width: 50, alignment: .trailing)
+
+                Text(MemoryFormat.size(app.bytes))
+                  .font(.footnote.monospacedDigit())
+                  .foregroundStyle(.secondary)
+                  .frame(width: 64, alignment: .trailing)
+              }
+              // One VoiceOver element per row, with the column names spoken.
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(
+                AppLocalization.formatted(
+                  "%@, %lld %@, %@",
+                  language: settings.language,
+                  app.name,
+                  Int64(app.processCount),
+                  AppLocalization.string(
+                    app.processCount == 1 ? "process" : "processes",
+                    language: settings.language
+                  ),
+                  MemoryFormat.size(app.bytes)
+                )
               )
-            )
+            }
           }
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
-      sectionLabel(title: "Top Apps", count: processVM.visibleApps.count)
+      sectionLabel(
+        title: "Top Apps", count: processVM.visibleApps.count, style: $settings.topAppsStyle)
     }
     .background(
       GlassSurfaceStyle.sectionColor(
@@ -480,59 +530,67 @@ struct PopoverRootView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         } else {
-          HStack(spacing: 8) {
-            Text("USER")
-              .frame(width: 58, alignment: .leading)
-            Text("PID")
-              .frame(width: 50, alignment: .leading)
-            Text("PROCESS")
-              .frame(maxWidth: .infinity, alignment: .leading)
-            Text("MEM")
-              .frame(width: 64, alignment: .trailing)
-          }
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
-          .accessibilityElement(children: .combine)
-          .accessibilityAddTraits(.isHeader)
-
-          ForEach(processVM.visibleProcesses, id: \.pid) { process in
+          if settings.topProcessesStyle == .treemap {
+            TopTreemapView(
+              items: processVM.visibleProcesses.map { processTreemapItem($0) },
+              language: settings.language
+            )
+            treemapScale
+          } else {
             HStack(spacing: 8) {
-              Text(process.user)
-                .font(.footnote.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+              Text("USER")
                 .frame(width: 58, alignment: .leading)
-                .help(process.user)
-
-              Text(verbatim: String(process.pid))
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.secondary)
+              Text("PID")
                 .frame(width: 50, alignment: .leading)
-
-              Text(processVM.displayName(for: process))
-                .font(.footnote)
-                .lineLimit(1)
-                .truncationMode(.middle)
+              Text("PROCESS")
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .help(process.command)
-
-              Text(MemoryFormat.size(process.rssBytes))
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.secondary)
+              Text("MEM")
                 .frame(width: 64, alignment: .trailing)
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(
-              AppLocalization.formatted(
-                "%@, user %@, PID %lld, %@",
-                language: settings.language,
-                processVM.displayName(for: process),
-                process.user,
-                Int64(process.pid),
-                MemoryFormat.size(process.rssBytes)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            ForEach(processVM.visibleProcesses, id: \.pid) { process in
+              HStack(spacing: 8) {
+                Text(process.user)
+                  .font(.footnote.monospaced())
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+                  .truncationMode(.tail)
+                  .frame(width: 58, alignment: .leading)
+                  .help(process.user)
+
+                Text(verbatim: String(process.pid))
+                  .font(.footnote.monospacedDigit())
+                  .foregroundStyle(.secondary)
+                  .frame(width: 50, alignment: .leading)
+
+                Text(processVM.displayName(for: process))
+                  .font(.footnote)
+                  .lineLimit(1)
+                  .truncationMode(.middle)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .help(process.command)
+
+                Text(MemoryFormat.size(process.rssBytes))
+                  .font(.footnote.monospacedDigit())
+                  .foregroundStyle(.secondary)
+                  .frame(width: 64, alignment: .trailing)
+              }
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(
+                AppLocalization.formatted(
+                  "%@, user %@, PID %lld, %@",
+                  language: settings.language,
+                  processVM.displayName(for: process),
+                  process.user,
+                  Int64(process.pid),
+                  MemoryFormat.size(process.rssBytes)
+                )
               )
-            )
+            }
           }
         }
 
@@ -551,7 +609,9 @@ struct PopoverRootView: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
-      sectionLabel(title: "Top Processes", count: processVM.visibleProcesses.count)
+      sectionLabel(
+        title: "Top Processes", count: processVM.visibleProcesses.count,
+        style: $settings.topProcessesStyle)
     }
     .background(
       GlassSurfaceStyle.sectionColor(
@@ -583,7 +643,9 @@ struct PopoverRootView: View {
   }
 
   /// Single section title that also reflects the active user filter.
-  private func sectionLabel(title: String, count: Int) -> some View {
+  private func sectionLabel(title: String, count: Int, style: Binding<TopListStyle>)
+    -> some View
+  {
     HStack(spacing: 4) {
       Text("\(Text(LocalizedStringKey(title))) (\(count))")
         .font(.headline)
@@ -594,6 +656,20 @@ struct PopoverRootView: View {
           .lineLimit(1)
       }
       Spacer()
+    }
+    // Room for the style button, which sits on top so the header height stays the same.
+    .padding(.trailing, 76)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .overlay(alignment: .trailing) {
+      Button(
+        AppLocalization.string(
+          style.wrappedValue == .list ? "Treemap" : "List", language: settings.language)
+      ) {
+        style.wrappedValue = style.wrappedValue.toggled
+      }
+      .buttonStyle(.bordered)
+      .controlSize(.small)
+      .help(AppLocalization.string("Change chart style", language: settings.language))
     }
   }
 

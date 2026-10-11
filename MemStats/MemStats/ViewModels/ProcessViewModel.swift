@@ -28,6 +28,12 @@ final class ProcessViewModel: ObservableObject {
   }
 
   private var userHistoryByUser: [String: [UserMemoryHistorySample]] = [:]
+  /// The snapshot before the current one, for the treemap's change colors. The lookups below
+  /// build lazily, so they cost nothing while the list style is shown.
+  private var previousProcesses: [ProcessSnapshot] = []
+  private var previousIdentities: [Int32: AppIdentity] = [:]
+  private var previousRSSByPID: [Int32: UInt64]?
+  private var previousAppBytes: [String: UInt64]?
   private(set) var maxSamples: Int
   private(set) var topAppsLimit: Int
   private(set) var topProcessesLimit: Int
@@ -65,6 +71,10 @@ final class ProcessViewModel: ObservableObject {
     targetUsedBytes: UInt64? = nil,
     sampledAt: Date = Date()
   ) {
+    previousProcesses = allProcesses
+    previousIdentities = self.appIdentities
+    previousRSSByPID = nil
+    previousAppBytes = nil
     self.appIdentities = appIdentities
     allProcesses = snapshots
     if !hasSampled {
@@ -121,7 +131,40 @@ final class ProcessViewModel: ObservableObject {
       ?? ProcessCommandName.displayName(from: process.command)
   }
 
+  /// Fractional change in RSS since the previous sample, or `nil` for a new process.
+  func change(for process: ProcessSnapshot) -> Double? {
+    guard !previousProcesses.isEmpty else { return nil }
+    if previousRSSByPID == nil {
+      previousRSSByPID = Dictionary(
+        previousProcesses.map { ($0.pid, $0.rssBytes) }, uniquingKeysWith: { first, _ in first })
+    }
+    guard let previous = previousRSSByPID?[process.pid] else { return nil }
+    return Self.change(from: previous, to: process.rssBytes)
+  }
+
+  /// Same, for an app. Compared within the current user filter, so a filtered app is not
+  /// measured against the app's total across all users.
+  func change(for app: AppMemoryUsage) -> Double? {
+    guard !previousProcesses.isEmpty else { return nil }
+    if previousAppBytes == nil {
+      let scoped = selectedUser.map { user in previousProcesses.filter { $0.user == user } }
+        ?? previousProcesses
+      let apps = AppMemoryAggregator.aggregate(processes: scoped, identities: previousIdentities)
+      previousAppBytes = Dictionary(
+        apps.map { ($0.id, $0.bytes) }, uniquingKeysWith: { first, _ in first })
+    }
+    guard let previous = previousAppBytes?[app.id] else { return nil }
+    return Self.change(from: previous, to: app.bytes)
+  }
+
+  private static func change(from previous: UInt64, to current: UInt64) -> Double? {
+    guard previous > 0 else { return nil }
+    return Double(current) / Double(previous) - 1
+  }
+
   private func refreshVisibleLists() {
+    // The previous-app lookup depends on the filter, so it is rebuilt on demand.
+    previousAppBytes = nil
     let scopedProcesses: [ProcessSnapshot]
     if let selectedUser {
       scopedProcesses = allProcesses.filter { $0.user == selectedUser }

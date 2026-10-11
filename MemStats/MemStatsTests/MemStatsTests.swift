@@ -545,6 +545,88 @@ struct MemStatsTests {
     #expect(vm.visibleApps.first?.processCount == 1)
   }
 
+  @Test func treemapLayoutFillsTheRectInProportion() {
+    let bounds = CGRect(x: 0, y: 0, width: 300, height: 150)
+    let values: [Double] = [600, 300, 200, 100, 50, 0]
+    let rects = TreemapLayout.layout(values: values, in: bounds)
+
+    #expect(rects.count == values.count)
+    let totalArea = rects.reduce(0) { $0 + Double($1.width * $1.height) }
+    #expect(abs(totalArea - 300 * 150) < 0.01)
+    for (rect, value) in zip(rects, values) {
+      #expect(bounds.insetBy(dx: -0.001, dy: -0.001).contains(rect))
+      #expect(abs(Double(rect.width * rect.height) - value / 1_250 * 45_000) < 0.01)
+    }
+    #expect(rects.last == .zero)
+    #expect(TreemapLayout.layout(values: [], in: bounds).isEmpty)
+    #expect(TreemapLayout.layout(values: [1, 2], in: .zero) == [.zero, .zero])
+    #expect(TreemapLayout.layout(values: [5], in: bounds) == [bounds])
+
+    // Input order does not matter: a zero in the middle must not drop later tiles.
+    let unsorted = TreemapLayout.layout(values: [100, 0, 300], in: bounds)
+    #expect(unsorted[1] == .zero)
+    #expect(abs(Double(unsorted[0].width * unsorted[0].height) - 11_250) < 0.01)
+    #expect(abs(Double(unsorted[2].width * unsorted[2].height) - 33_750) < 0.01)
+  }
+
+  @Test func treemapToneAndChangeText() {
+    func item(_ change: Double?) -> TreemapItem {
+      TreemapItem(id: "a", name: "A", bytes: 1, details: [], change: change)
+    }
+    #expect(item(nil).tone == 0)
+    #expect(item(0.004).tone == 0)
+    #expect(item(0.01).tone == 1)
+    #expect(item(0.03).tone == 2)
+    #expect(item(0.5).tone == 3)
+    #expect(item(-0.01).tone == -1)
+    #expect(item(-0.5).tone == -3)
+
+    // Small tiles drop the least important line first and keep the display order.
+    let details = [
+      TreemapDetail(text: "PID 1", priority: 1),
+      TreemapDetail(text: "1 GB", priority: 0),
+      TreemapDetail(text: "alice", priority: 2),
+    ]
+    let tile = TreemapItem(id: "a", name: "A", bytes: 1, details: details, change: nil)
+    #expect(tile.visibleDetails(lineCount: 3).map(\.text) == ["PID 1", "1 GB", "alice"])
+    #expect(tile.visibleDetails(lineCount: 2).map(\.text) == ["PID 1", "1 GB"])
+    #expect(tile.visibleDetails(lineCount: 1).map(\.text) == ["1 GB"])
+    #expect(tile.visibleDetails(lineCount: 0).isEmpty)
+  }
+
+  @MainActor @Test func processViewModelReportsChangeSincePreviousSample() {
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let vm = ProcessViewModel()
+    func snapshots(_ bob: UInt64, _ alice: UInt64) -> [ProcessSnapshot] {
+      [
+        ProcessSnapshot(user: "bob", pid: 1, rssBytes: bob, command: "A"),
+        ProcessSnapshot(user: "alice", pid: 2, rssBytes: alice, command: "A"),
+      ]
+    }
+
+    vm.apply(snapshots: snapshots(900, 100), appIdentities: [1: app, 2: app])
+    // No earlier sample yet.
+    #expect(vm.change(for: vm.visibleProcesses[0]) == nil)
+    #expect(vm.change(for: vm.visibleApps[0]) == nil)
+
+    vm.apply(snapshots: snapshots(990, 100), appIdentities: [1: app, 2: app])
+    #expect(abs((vm.change(for: vm.visibleProcesses[0]) ?? 0) - 0.1) < 1e-9)
+    #expect(abs((vm.change(for: vm.visibleApps[0]) ?? 0) - 0.09) < 1e-9)
+
+    // Filtered apps compare against the same user's earlier bytes (100 -> 100).
+    vm.selectedUser = "alice"
+    #expect(abs(vm.change(for: vm.visibleApps[0]) ?? 1) < 1e-9)
+
+    // A process without an earlier reading has no change.
+    vm.apply(
+      snapshots: snapshots(990, 100) + [
+        ProcessSnapshot(user: "bob", pid: 3, rssBytes: 50, command: "B")
+      ],
+      appIdentities: [1: app, 2: app])
+    vm.selectedUser = nil
+    #expect(vm.visibleProcesses.first { $0.pid == 3 }.flatMap { vm.change(for: $0) } == nil)
+  }
+
   @Test func memoryStatsServiceReturnsPositiveTotals() throws {
     let service = MemoryStatsService()
     let stats = try service.fetchMemoryStats()
@@ -687,6 +769,7 @@ struct MemStatsTests {
     #expect(HistoryHeatmapView.columnCount(for: 0) == 0)
     #expect(HistoryHeatmapView.columnCount(for: 328) == 23)
     #expect(HistoryChartStyle.line.toggled == .heatmap)
+    #expect(TopListStyle.list.toggled == .treemap)
     #expect(HistoryHeatmapView.columnCount(for: 10) == 0)
     #expect(HistoryHeatmapView.columnCount(for: 11) == 1)
     #expect(HistoryHeatmapView.columnCount(for: 24) == 1)
@@ -727,6 +810,8 @@ struct MemStatsTests {
     #expect(store.theme == .system)
     #expect(store.language == .system)
     #expect(store.historyChartStyle == .line)
+    #expect(store.topAppsStyle == .list)
+    #expect(store.topProcessesStyle == .list)
     #expect(store.glassBackground == false)
     #expect(store.glassOpacity == SettingsStore.defaultGlassOpacity)
 
@@ -737,6 +822,7 @@ struct MemStatsTests {
     store.theme = .dark
     store.language = .vietnamese
     store.historyChartStyle = .heatmap
+    store.topAppsStyle = .treemap
     store.glassBackground = true
     store.glassOpacity = 0.7
     let restored = SettingsStore(defaults: defaults)
@@ -747,6 +833,8 @@ struct MemStatsTests {
     #expect(restored.theme == .dark)
     #expect(restored.language == .vietnamese)
     #expect(restored.historyChartStyle == .heatmap)
+    #expect(restored.topAppsStyle == .treemap)
+    #expect(restored.topProcessesStyle == .list)
     #expect(restored.glassBackground == true)
     #expect(restored.glassOpacity == 0.7)
 

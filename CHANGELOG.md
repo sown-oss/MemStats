@@ -7,6 +7,7 @@ All notable changes to MemStats are documented here.
 ### Added
 
 - Optional GitHub-style heatmap for the History section. Switch with the button in the History header or the new History chart style setting; the line chart stays the default.
+- Optional treemap for Top Apps and Top Processes, switched separately by the button in each header or by the Top apps style and Top processes style settings. Tile size is memory, color is the change since the previous sample, and tiles show the name, MEM, PID and, with several users, the user. The list stays the default.
 
 ### Changed
 
