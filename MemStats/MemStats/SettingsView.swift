@@ -36,6 +36,27 @@ struct SettingsView: View {
       }
 
       Section {
+        Picker("History chart style", selection: $settings.historyChartStyle) {
+          ForEach(HistoryChartStyle.allCases) { style in
+            Text(LocalizedStringKey(style.displayName)).tag(style)
+          }
+        }
+      }
+
+      Section {
+        Picker("Top apps style", selection: $settings.topAppsStyle) {
+          ForEach(TopListStyle.allCases) { style in
+            Text(LocalizedStringKey(style.displayName)).tag(style)
+          }
+        }
+        Picker("Top processes style", selection: $settings.topProcessesStyle) {
+          ForEach(TopListStyle.allCases) { style in
+            Text(LocalizedStringKey(style.displayName)).tag(style)
+          }
+        }
+      }
+
+      Section {
         Toggle("Glass background", isOn: $settings.glassBackground)
         if settings.glassBackground {
           HStack {

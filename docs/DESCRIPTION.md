@@ -259,12 +259,34 @@ Process timer (top):                        default every 5s, setting 3-60s
 
 ---
 
+## 6a. App Icons
+
+* Top Apps rows show the app's icon before its name, and Top Processes rows show the icon of the app a process belongs to (helpers share their app's icon) before the process name. A process with no resolved path, or an app without a bundle, shows the generic executable icon
+* Icons come from `NSWorkspace` by path and are cached (`AppIconProvider`), 16 pt, hidden from VoiceOver since the row text names the app
+* The treemap shows the icon beside the name on wide tiles, and alone on tiles too small for text
+
+## 6b. Top Lists Treemap
+
+* `Top Apps` and `Top Processes` each have their own style setting (`topAppsStyle`, `topProcessesStyle`): `List` (default) or `Treemap`. A bordered button in each header and the `Top apps style` / `Top processes style` pickers in Settings change it; the header button is overlaid so the header height does not change
+* Squarified treemap of the rows the list would show (same user filter and row count). Tile area is memory (app total, or process RSS)
+* Tile text, most important first: name, MEM, then `PID n` (processes) or process count (apps), then the user. The user line only shows for processes when the visible rows come from more than one user. Lines that do not fit are dropped from the least important end; tiles too small for any text show color only. No percentage is printed on tiles
+* Tile color is the change since the previous sample: red = higher, green = lower, gray = within 0.5% or no earlier reading (new process). Strength has 3 steps, at 0.5%, 2% and 5%. For apps the earlier value is measured inside the current user filter. The key under the chart is one `Lower` to `Higher` scale with a short caption; the tooltip and VoiceOver label give name, PID, memory and user
+* Empty and loading states are the same as the list
+
 ## 7. History Chart
 
 ### Status rows
 
 * `Sampling`: current mode and the intervals the timers run at, for example `Active (5s)` while the popover is open and `Idle (15s, processes 60s)` while it is closed. When the two timers differ the process interval is listed too: `Active (2s, processes 10s)`
-* `History Samples`: number of samples currently kept
+* The sample count shows in the section headers instead of a row: `History (120)`, `Top Apps (8)`, `Top Processes (8)`
+
+### Chart style
+
+* Two styles: `Line` (default, described below) and `Heatmap`
+* A small bordered button in the History header (same placement as Clear Filter in Top Users, overlaid so it does not shift the layout) switches style; Settings has a matching `History chart style` picker. Both write the same persisted setting (`historyChartStyle`), so they never disagree
+* Heatmap is a GitHub-style grid of 7 rows, filled column by column, newest sample in the last column; slots without a sample stay empty. It shows as many of the newest samples as fit the width
+* Green intensity has 4 levels, scaled to the lowest and highest used RAM in the visible samples (a flat window shows one mid level). Warning and critical samples use their pressure color instead
+* The heatmap is not scrollable and has no selected user series; its legend shows one Less to More key (4 green levels, then orange for warning and red for critical), used RAM and the pressure badge. VoiceOver reads the same "Memory history" summary as the line chart
 
 ### Metrics (In-memory)
 
@@ -518,6 +540,9 @@ closes the popover. When the popup is open, ⌘, opens Settings directly and clo
 | --- | --- | --- |
 | Update interval (RAM, pressure, swap, menu bar, history) | 1, 2, 3, 5, 10, 15, 30, 60s | 5s |
 | Update interval for top processes (`top`) | 3, 5, 10, 15, 30, 60s | 5s |
+| History chart style | Line / Heatmap | Line |
+| Top apps style | List / Treemap | List |
+| Top processes style | List / Treemap | List |
 | Number of top apps | 5, 8, 10, 15, 20 | 8 |
 | Number of top processes | 5, 8, 10, 15, 20 | 8 |
 | Open at Login | on / off | off |

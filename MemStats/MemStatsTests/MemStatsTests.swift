@@ -545,6 +545,99 @@ struct MemStatsTests {
     #expect(vm.visibleApps.first?.processCount == 1)
   }
 
+  @Test func treemapLayoutFillsTheRectInProportion() {
+    let bounds = CGRect(x: 0, y: 0, width: 300, height: 150)
+    let values: [Double] = [600, 300, 200, 100, 50, 0]
+    let rects = TreemapLayout.layout(values: values, in: bounds)
+
+    #expect(rects.count == values.count)
+    let totalArea = rects.reduce(0) { $0 + Double($1.width * $1.height) }
+    #expect(abs(totalArea - 300 * 150) < 0.01)
+    for (rect, value) in zip(rects, values) {
+      #expect(bounds.insetBy(dx: -0.001, dy: -0.001).contains(rect))
+      #expect(abs(Double(rect.width * rect.height) - value / 1_250 * 45_000) < 0.01)
+    }
+    #expect(rects.last == .zero)
+    #expect(TreemapLayout.layout(values: [], in: bounds).isEmpty)
+    #expect(TreemapLayout.layout(values: [1, 2], in: .zero) == [.zero, .zero])
+    #expect(TreemapLayout.layout(values: [5], in: bounds) == [bounds])
+
+    // Input order does not matter: a zero in the middle must not drop later tiles.
+    let unsorted = TreemapLayout.layout(values: [100, 0, 300], in: bounds)
+    #expect(unsorted[1] == .zero)
+    #expect(abs(Double(unsorted[0].width * unsorted[0].height) - 11_250) < 0.01)
+    #expect(abs(Double(unsorted[2].width * unsorted[2].height) - 33_750) < 0.01)
+  }
+
+  @Test func treemapToneAndChangeText() {
+    func item(_ change: Double?) -> TreemapItem {
+      TreemapItem(id: "a", name: "A", bytes: 1, details: [], change: change)
+    }
+    #expect(item(nil).tone == 0)
+    #expect(item(0.004).tone == 0)
+    #expect(item(0.01).tone == 1)
+    #expect(item(0.03).tone == 2)
+    #expect(item(0.5).tone == 3)
+    #expect(item(-0.01).tone == -1)
+    #expect(item(-0.5).tone == -3)
+
+    // Small tiles drop the least important line first and keep the display order.
+    let details = [
+      TreemapDetail(text: "PID 1", priority: 1),
+      TreemapDetail(text: "1 GB", priority: 0),
+      TreemapDetail(text: "alice", priority: 2),
+    ]
+    let tile = TreemapItem(id: "a", name: "A", bytes: 1, details: details, change: nil)
+    #expect(tile.visibleDetails(lineCount: 3).map(\.text) == ["PID 1", "1 GB", "alice"])
+    #expect(tile.visibleDetails(lineCount: 2).map(\.text) == ["PID 1", "1 GB"])
+    #expect(tile.visibleDetails(lineCount: 1).map(\.text) == ["1 GB"])
+    #expect(tile.visibleDetails(lineCount: 0).isEmpty)
+  }
+
+  @MainActor @Test func processViewModelResolvesIconPathFromAppIdentity() {
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let vm = ProcessViewModel()
+    let known = ProcessSnapshot(user: "bob", pid: 1, rssBytes: 10, command: "A")
+    let unknown = ProcessSnapshot(user: "bob", pid: 2, rssBytes: 10, command: "B")
+    vm.apply(snapshots: [known, unknown], appIdentities: [1: app])
+
+    #expect(vm.iconPath(for: known) == "/A.app")
+    #expect(vm.iconPath(for: unknown) == nil)
+  }
+
+  @MainActor @Test func processViewModelReportsChangeSincePreviousSample() {
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let vm = ProcessViewModel()
+    func snapshots(_ bob: UInt64, _ alice: UInt64) -> [ProcessSnapshot] {
+      [
+        ProcessSnapshot(user: "bob", pid: 1, rssBytes: bob, command: "A"),
+        ProcessSnapshot(user: "alice", pid: 2, rssBytes: alice, command: "A"),
+      ]
+    }
+
+    vm.apply(snapshots: snapshots(900, 100), appIdentities: [1: app, 2: app])
+    // No earlier sample yet.
+    #expect(vm.change(for: vm.visibleProcesses[0]) == nil)
+    #expect(vm.change(for: vm.visibleApps[0]) == nil)
+
+    vm.apply(snapshots: snapshots(990, 100), appIdentities: [1: app, 2: app])
+    #expect(abs((vm.change(for: vm.visibleProcesses[0]) ?? 0) - 0.1) < 1e-9)
+    #expect(abs((vm.change(for: vm.visibleApps[0]) ?? 0) - 0.09) < 1e-9)
+
+    // Filtered apps compare against the same user's earlier bytes (100 -> 100).
+    vm.selectedUser = "alice"
+    #expect(abs(vm.change(for: vm.visibleApps[0]) ?? 1) < 1e-9)
+
+    // A process without an earlier reading has no change.
+    vm.apply(
+      snapshots: snapshots(990, 100) + [
+        ProcessSnapshot(user: "bob", pid: 3, rssBytes: 50, command: "B")
+      ],
+      appIdentities: [1: app, 2: app])
+    vm.selectedUser = nil
+    #expect(vm.visibleProcesses.first { $0.pid == 3 }.flatMap { vm.change(for: $0) } == nil)
+  }
+
   @Test func memoryStatsServiceReturnsPositiveTotals() throws {
     let service = MemoryStatsService()
     let stats = try service.fetchMemoryStats()
@@ -659,6 +752,62 @@ struct MemStatsTests {
     #expect(MemStatsAppState.historyCapacity(interval: 0) == 600)
   }
 
+  @Test func historyHeatmapFillsFromTheRightAndScalesLevelsToTheWindow() {
+    func sample(_ used: UInt64, _ pressure: MemoryPressureLevel = .normal) -> MemoryHistorySample {
+      MemoryHistorySample(
+        timestamp: Date(), usedBytes: used, swapUsedBytes: 0, pressureLevel: pressure)
+    }
+
+    #expect(HistoryHeatmap.cells(from: [sample(1)], columns: 0).isEmpty)
+
+    let cells = HistoryHeatmap.cells(
+      from: [sample(100), sample(200, .warning), sample(300)], columns: 2)
+    #expect(cells.count == 2 * HistoryHeatmap.rows)
+    #expect(cells.prefix(11).allSatisfy { $0 == nil })
+    #expect(cells[11]?.level == 1)
+    #expect(cells[12]?.pressureLevel == .warning)
+    #expect(cells[13]?.level == HistoryHeatmap.levelCount)
+
+    // More samples than slots keeps the newest ones.
+    let many = (0..<20).map { sample(UInt64($0)) }
+    let trimmed = HistoryHeatmap.cells(from: many, columns: 2)
+    #expect(trimmed.allSatisfy { $0 != nil })
+    #expect(trimmed.last??.level == HistoryHeatmap.levelCount)
+
+    // A flat window reads as one mid level.
+    let flat = HistoryHeatmap.cells(from: [sample(5), sample(5)], columns: 1)
+    #expect(flat[5]?.level == flat[6]?.level)
+    #expect(HistoryHeatmapView.columnCount(for: 0) == 0)
+    #expect(HistoryHeatmapView.columnCount(for: 328) == 23)
+    #expect(HistoryChartStyle.line.toggled == .heatmap)
+    #expect(TopListStyle.list.toggled == .treemap)
+    #expect(HistoryHeatmapView.columnCount(for: 10) == 0)
+    #expect(HistoryHeatmapView.columnCount(for: 11) == 1)
+    #expect(HistoryHeatmapView.columnCount(for: 24) == 1)
+    #expect(HistoryHeatmapView.columnCount(for: 25) == 2)
+
+    // Bucket boundaries over 0...100.
+    #expect(HistoryHeatmap.level(for: 0, low: 0, high: 100) == 1)
+    #expect(HistoryHeatmap.level(for: 24, low: 0, high: 100) == 1)
+    #expect(HistoryHeatmap.level(for: 25, low: 0, high: 100) == 2)
+    #expect(HistoryHeatmap.level(for: 75, low: 0, high: 100) == 4)
+    #expect(HistoryHeatmap.level(for: 100, low: 0, high: 100) == HistoryHeatmap.levelCount)
+
+    // Pressure colors only replace green above normal.
+    let normal = HistoryHeatmapCell(level: 2, pressureLevel: .normal)
+    let critical = HistoryHeatmapCell(level: 2, pressureLevel: .critical)
+    #expect(HistoryHeatmapView.color(for: normal) == HistoryHeatmapView.levelColor(2))
+    #expect(HistoryHeatmapView.color(for: critical) != HistoryHeatmapView.levelColor(2))
+  }
+
+  @Test func settingsStoreFallsBackToLineForInvalidHistoryChartStyle() {
+    let suiteName = "MemStatsTests.SettingsStore.ChartStyle"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+    defaults.set("bogus", forKey: SettingsStore.historyChartStyleKey)
+    #expect(SettingsStore(defaults: defaults).historyChartStyle == .line)
+  }
+
   @Test func settingsStoreUsesDefaultsPersistsAndRejectsInvalidValues() {
     let suiteName = "MemStatsTests.SettingsStore"
     let defaults = UserDefaults(suiteName: suiteName)!
@@ -671,6 +820,9 @@ struct MemStatsTests {
     #expect(store.topProcessesCount == 8)
     #expect(store.theme == .system)
     #expect(store.language == .system)
+    #expect(store.historyChartStyle == .line)
+    #expect(store.topAppsStyle == .list)
+    #expect(store.topProcessesStyle == .list)
     #expect(store.glassBackground == false)
     #expect(store.glassOpacity == SettingsStore.defaultGlassOpacity)
 
@@ -680,6 +832,8 @@ struct MemStatsTests {
     store.topProcessesCount = 20
     store.theme = .dark
     store.language = .vietnamese
+    store.historyChartStyle = .heatmap
+    store.topAppsStyle = .treemap
     store.glassBackground = true
     store.glassOpacity = 0.7
     let restored = SettingsStore(defaults: defaults)
@@ -689,6 +843,9 @@ struct MemStatsTests {
     #expect(restored.topProcessesCount == 20)
     #expect(restored.theme == .dark)
     #expect(restored.language == .vietnamese)
+    #expect(restored.historyChartStyle == .heatmap)
+    #expect(restored.topAppsStyle == .treemap)
+    #expect(restored.topProcessesStyle == .list)
     #expect(restored.glassBackground == true)
     #expect(restored.glassOpacity == 0.7)
 

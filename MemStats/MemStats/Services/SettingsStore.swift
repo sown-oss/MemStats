@@ -14,6 +14,8 @@ final class SettingsStore: ObservableObject {
   static let defaultRowCount = 8
   static let defaultTheme: AppTheme = .system
   static let defaultLanguage: AppLanguage = .system
+  static let defaultHistoryChartStyle: HistoryChartStyle = .line
+  static let defaultTopListStyle: TopListStyle = .list
   static let defaultGlassBackground = false
   static let defaultGlassOpacity = 0.52
   static let minimumGlassOpacity = 0.0
@@ -25,6 +27,9 @@ final class SettingsStore: ObservableObject {
   static let topProcessesCountKey = "topProcessesCount"
   static let themeKey = "theme"
   static let languageKey = "language"
+  static let historyChartStyleKey = "historyChartStyle"
+  static let topAppsStyleKey = "topAppsStyle"
+  static let topProcessesStyleKey = "topProcessesStyle"
   static let glassBackgroundKey = "glassBackground"
   static let glassOpacityKey = "glassOpacity"
 
@@ -74,6 +79,24 @@ final class SettingsStore: ObservableObject {
     }
   }
 
+  @Published var historyChartStyle: HistoryChartStyle {
+    didSet {
+      defaults.set(historyChartStyle.rawValue, forKey: Self.historyChartStyleKey)
+    }
+  }
+
+  @Published var topAppsStyle: TopListStyle {
+    didSet {
+      defaults.set(topAppsStyle.rawValue, forKey: Self.topAppsStyleKey)
+    }
+  }
+
+  @Published var topProcessesStyle: TopListStyle {
+    didSet {
+      defaults.set(topProcessesStyle.rawValue, forKey: Self.topProcessesStyleKey)
+    }
+  }
+
   @Published var glassBackground: Bool {
     didSet {
       defaults.set(glassBackground, forKey: Self.glassBackgroundKey)
@@ -112,6 +135,9 @@ final class SettingsStore: ObservableObject {
       fallback: Self.defaultRowCount)
     theme = Self.readTheme(from: defaults)
     language = Self.readLanguage(from: defaults)
+    historyChartStyle = Self.readHistoryChartStyle(from: defaults)
+    topAppsStyle = Self.readTopListStyle(Self.topAppsStyleKey, from: defaults)
+    topProcessesStyle = Self.readTopListStyle(Self.topProcessesStyleKey, from: defaults)
     glassBackground = Self.readGlassBackground(from: defaults)
     glassOpacity = Self.readGlassOpacity(from: defaults)
   }
@@ -132,6 +158,24 @@ final class SettingsStore: ObservableObject {
       return defaultLanguage
     }
     return language
+  }
+
+  private static func readHistoryChartStyle(from defaults: UserDefaults) -> HistoryChartStyle {
+    guard let rawValue = defaults.string(forKey: historyChartStyleKey),
+      let style = HistoryChartStyle(rawValue: rawValue)
+    else {
+      return defaultHistoryChartStyle
+    }
+    return style
+  }
+
+  private static func readTopListStyle(_ key: String, from defaults: UserDefaults) -> TopListStyle {
+    guard let rawValue = defaults.string(forKey: key),
+      let style = TopListStyle(rawValue: rawValue)
+    else {
+      return defaultTopListStyle
+    }
+    return style
   }
 
   private static func readGlassBackground(from defaults: UserDefaults) -> Bool {
