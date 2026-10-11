@@ -36,6 +36,14 @@ struct SettingsView: View {
       }
 
       Section {
+        Picker("History chart style", selection: $settings.historyChartStyle) {
+          ForEach(HistoryChartStyle.allCases) { style in
+            Text(LocalizedStringKey(style.displayName)).tag(style)
+          }
+        }
+      }
+
+      Section {
         Toggle("Glass background", isOn: $settings.glassBackground)
         if settings.glassBackground {
           HStack {

@@ -659,6 +659,61 @@ struct MemStatsTests {
     #expect(MemStatsAppState.historyCapacity(interval: 0) == 600)
   }
 
+  @Test func historyHeatmapFillsFromTheRightAndScalesLevelsToTheWindow() {
+    func sample(_ used: UInt64, _ pressure: MemoryPressureLevel = .normal) -> MemoryHistorySample {
+      MemoryHistorySample(
+        timestamp: Date(), usedBytes: used, swapUsedBytes: 0, pressureLevel: pressure)
+    }
+
+    #expect(HistoryHeatmap.cells(from: [sample(1)], columns: 0).isEmpty)
+
+    let cells = HistoryHeatmap.cells(
+      from: [sample(100), sample(200, .warning), sample(300)], columns: 2)
+    #expect(cells.count == 2 * HistoryHeatmap.rows)
+    #expect(cells.prefix(11).allSatisfy { $0 == nil })
+    #expect(cells[11]?.level == 1)
+    #expect(cells[12]?.pressureLevel == .warning)
+    #expect(cells[13]?.level == HistoryHeatmap.levelCount)
+
+    // More samples than slots keeps the newest ones.
+    let many = (0..<20).map { sample(UInt64($0)) }
+    let trimmed = HistoryHeatmap.cells(from: many, columns: 2)
+    #expect(trimmed.allSatisfy { $0 != nil })
+    #expect(trimmed.last??.level == HistoryHeatmap.levelCount)
+
+    // A flat window reads as one mid level.
+    let flat = HistoryHeatmap.cells(from: [sample(5), sample(5)], columns: 1)
+    #expect(flat[5]?.level == flat[6]?.level)
+    #expect(HistoryHeatmapView.columnCount(for: 0) == 0)
+    #expect(HistoryHeatmapView.columnCount(for: 328) == 23)
+    #expect(HistoryChartStyle.line.toggled == .heatmap)
+    #expect(HistoryHeatmapView.columnCount(for: 10) == 0)
+    #expect(HistoryHeatmapView.columnCount(for: 11) == 1)
+    #expect(HistoryHeatmapView.columnCount(for: 24) == 1)
+    #expect(HistoryHeatmapView.columnCount(for: 25) == 2)
+
+    // Bucket boundaries over 0...100.
+    #expect(HistoryHeatmap.level(for: 0, low: 0, high: 100) == 1)
+    #expect(HistoryHeatmap.level(for: 24, low: 0, high: 100) == 1)
+    #expect(HistoryHeatmap.level(for: 25, low: 0, high: 100) == 2)
+    #expect(HistoryHeatmap.level(for: 75, low: 0, high: 100) == 4)
+    #expect(HistoryHeatmap.level(for: 100, low: 0, high: 100) == HistoryHeatmap.levelCount)
+
+    // Pressure colors only replace green above normal.
+    let normal = HistoryHeatmapCell(level: 2, pressureLevel: .normal)
+    let critical = HistoryHeatmapCell(level: 2, pressureLevel: .critical)
+    #expect(HistoryHeatmapView.color(for: normal) == HistoryHeatmapView.levelColor(2))
+    #expect(HistoryHeatmapView.color(for: critical) != HistoryHeatmapView.levelColor(2))
+  }
+
+  @Test func settingsStoreFallsBackToLineForInvalidHistoryChartStyle() {
+    let suiteName = "MemStatsTests.SettingsStore.ChartStyle"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+    defaults.set("bogus", forKey: SettingsStore.historyChartStyleKey)
+    #expect(SettingsStore(defaults: defaults).historyChartStyle == .line)
+  }
+
   @Test func settingsStoreUsesDefaultsPersistsAndRejectsInvalidValues() {
     let suiteName = "MemStatsTests.SettingsStore"
     let defaults = UserDefaults(suiteName: suiteName)!
@@ -671,6 +726,7 @@ struct MemStatsTests {
     #expect(store.topProcessesCount == 8)
     #expect(store.theme == .system)
     #expect(store.language == .system)
+    #expect(store.historyChartStyle == .line)
     #expect(store.glassBackground == false)
     #expect(store.glassOpacity == SettingsStore.defaultGlassOpacity)
 
@@ -680,6 +736,7 @@ struct MemStatsTests {
     store.topProcessesCount = 20
     store.theme = .dark
     store.language = .vietnamese
+    store.historyChartStyle = .heatmap
     store.glassBackground = true
     store.glassOpacity = 0.7
     let restored = SettingsStore(defaults: defaults)
@@ -689,6 +746,7 @@ struct MemStatsTests {
     #expect(restored.topProcessesCount == 20)
     #expect(restored.theme == .dark)
     #expect(restored.language == .vietnamese)
+    #expect(restored.historyChartStyle == .heatmap)
     #expect(restored.glassBackground == true)
     #expect(restored.glassOpacity == 0.7)
 

@@ -239,116 +239,112 @@ struct PopoverRootView: View {
         }
         .font(.footnote)
 
-        HStack {
-          Text("History Samples")
-          Spacer()
-          Text(verbatim: String(memoryVM.history.count))
-            .monospacedDigit()
-        }
-        .font(.footnote)
-
         if memoryVM.history.isEmpty {
           Text("Loading history data…")
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
         } else {
-          Chart {
-            ForEach(memoryVM.historySegments) { point in
-              AreaMark(
-                x: .value("Time", point.timestamp),
-                yStart: .value("Baseline", 0),
-                yEnd: .value("Used RAM", Double(point.usedBytes)),
-                series: .value("Segment", point.segmentID)
-              )
-              .foregroundStyle(PopoverStyle.pressureColor(point.pressureLevel).opacity(0.18))
-              .interpolationMethod(.linear)
-            }
-
-            ForEach(memoryVM.historySegments) { point in
-              LineMark(
-                x: .value("Time", point.timestamp),
-                y: .value("Used RAM", Double(point.usedBytes)),
-                series: .value("Segment", point.segmentID)
-              )
-              .foregroundStyle(PopoverStyle.pressureColor(point.pressureLevel))
-              .lineStyle(StrokeStyle(lineWidth: 2))
-              .interpolationMethod(.linear)
-            }
-
-            // A single sample has no segment yet, so show it as a point.
-            if memoryVM.history.count == 1, let sample = memoryVM.history.first {
-              PointMark(
-                x: .value("Time", sample.timestamp),
-                y: .value("Used RAM", Double(sample.usedBytes))
-              )
-              .foregroundStyle(PopoverStyle.pressureColor(sample.pressureLevel))
-            }
-
-            if let selectedUser = processVM.selectedUser {
-              // Timestamps are unique and monotonic, so they stay stable as old samples drop.
-              ForEach(processVM.selectedUserHistory, id: \.timestamp) { sample in
-                LineMark(
-                  x: .value("Time", sample.timestamp),
-                  y: .value("Selected User", Double(sample.displayBytes)),
-                  series: .value("Segment", "selected-user")
+          if settings.historyChartStyle == .heatmap {
+            historyHeatmap
+          } else {
+            Chart {
+              ForEach(memoryVM.historySegments) { point in
+                AreaMark(
+                  x: .value("Time", point.timestamp),
+                  yStart: .value("Baseline", 0),
+                  yEnd: .value("Used RAM", Double(point.usedBytes)),
+                  series: .value("Segment", point.segmentID)
                 )
-                .foregroundStyle(PopoverStyle.userColor(selectedUser))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                .foregroundStyle(PopoverStyle.pressureColor(point.pressureLevel).opacity(0.18))
                 .interpolationMethod(.linear)
               }
-            }
-          }
-          .chartLegend(.hidden)
-          .chartYScale(domain: 0...historyScaleUpperBound)
-          .chartXScale(domain: historyXDomain)
-          .chartScrollableAxes(.horizontal)
-          .chartXVisibleDomain(length: Self.historyVisibleSeconds)
-          .chartScrollPosition(x: $historyScrollPosition)
-          .chartXAxis {
-            AxisMarks(values: .stride(by: .second, count: 30)) { _ in
-              AxisGridLine()
-              AxisValueLabel(format: .dateTime.hour().minute().second())
-            }
-          }
-          .chartYAxis {
-            AxisMarks(
-              position: .leading,
-              values: MemoryFormat.axisTickValues(upperBound: historyScaleUpperBound)
-            ) { value in
-              AxisGridLine()
-              AxisTick()
-              AxisValueLabel {
-                if let bytes = value.as(Double.self) {
-                  Text(MemoryFormat.axisTick(bytes))
+
+              ForEach(memoryVM.historySegments) { point in
+                LineMark(
+                  x: .value("Time", point.timestamp),
+                  y: .value("Used RAM", Double(point.usedBytes)),
+                  series: .value("Segment", point.segmentID)
+                )
+                .foregroundStyle(PopoverStyle.pressureColor(point.pressureLevel))
+                .lineStyle(StrokeStyle(lineWidth: 2))
+                .interpolationMethod(.linear)
+              }
+
+              // A single sample has no segment yet, so show it as a point.
+              if memoryVM.history.count == 1, let sample = memoryVM.history.first {
+                PointMark(
+                  x: .value("Time", sample.timestamp),
+                  y: .value("Used RAM", Double(sample.usedBytes))
+                )
+                .foregroundStyle(PopoverStyle.pressureColor(sample.pressureLevel))
+              }
+
+              if let selectedUser = processVM.selectedUser {
+                // Timestamps are unique and monotonic, so they stay stable as old samples drop.
+                ForEach(processVM.selectedUserHistory, id: \.timestamp) { sample in
+                  LineMark(
+                    x: .value("Time", sample.timestamp),
+                    y: .value("Selected User", Double(sample.displayBytes)),
+                    series: .value("Segment", "selected-user")
+                  )
+                  .foregroundStyle(PopoverStyle.userColor(selectedUser))
+                  .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                  .interpolationMethod(.linear)
                 }
               }
             }
-          }
-          .frame(height: 145)
-          // Hundreds of marks are noise for VoiceOver, so read the chart as one summary.
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel("Memory history")
-          .accessibilityValue(historyAccessibilityValue)
-          .onAppear(perform: followLatestHistory)
-          // The popup window is reused, so reopening it switches to active sampling
-          // instead of firing onAppear again.
-          .onChange(of: appState.samplingMode) {
-            if appState.samplingMode == .active {
-              followLatestHistory()
+            .chartLegend(.hidden)
+            .chartYScale(domain: 0...historyScaleUpperBound)
+            .chartXScale(domain: historyXDomain)
+            .chartScrollableAxes(.horizontal)
+            .chartXVisibleDomain(length: Self.historyVisibleSeconds)
+            .chartScrollPosition(x: $historyScrollPosition)
+            .chartXAxis {
+              AxisMarks(values: .stride(by: .second, count: 30)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.hour().minute().second())
+              }
             }
-          }
-          .onChange(of: historyXDomain.upperBound) {
-            if historyFollowsLatest {
-              historyScrollPosition = historyLatestScrollPosition
+            .chartYAxis {
+              AxisMarks(
+                position: .leading,
+                values: MemoryFormat.axisTickValues(upperBound: historyScaleUpperBound)
+              ) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel {
+                  if let bytes = value.as(Double.self) {
+                    Text(MemoryFormat.axisTick(bytes))
+                  }
+                }
+              }
             }
-          }
-          .onChange(of: historyScrollPosition) {
-            // Scrolling back pauses following; scrolling to the newest sample resumes it.
-            // Capped so slow idle intervals don't turn most of the window into a dead zone.
-            let tolerance = min(max(appState.memorySamplingInterval, 2), 5)
-            historyFollowsLatest =
-              historyScrollPosition >= historyLatestScrollPosition.addingTimeInterval(-tolerance)
+            .frame(height: 145)
+            // Hundreds of marks are noise for VoiceOver, so read the chart as one summary.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Memory history")
+            .accessibilityValue(historyAccessibilityValue)
+            .onAppear(perform: followLatestHistory)
+            // The popup window is reused, so reopening it switches to active sampling
+            // instead of firing onAppear again.
+            .onChange(of: appState.samplingMode) {
+              if appState.samplingMode == .active {
+                followLatestHistory()
+              }
+            }
+            .onChange(of: historyXDomain.upperBound) {
+              if historyFollowsLatest {
+                historyScrollPosition = historyLatestScrollPosition
+              }
+            }
+            .onChange(of: historyScrollPosition) {
+              // Scrolling back pauses following; scrolling to the newest sample resumes it.
+              // Capped so slow idle intervals don't turn most of the window into a dead zone.
+              let tolerance = min(max(appState.memorySamplingInterval, 2), 5)
+              historyFollowsLatest =
+                historyScrollPosition >= historyLatestScrollPosition.addingTimeInterval(-tolerance)
+            }
           }
 
           // Items wrap one by one, so adding "Selected" only moves that item to the next row.
@@ -375,8 +371,21 @@ struct PopoverRootView: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
-      Text("History")
+      // Overlay keeps the button out of the label's layout, like Clear Filter in Top Users.
+      Text("\(Text("History")) (\(memoryVM.history.count))")
         .font(.headline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .trailing) {
+          Button(
+            AppLocalization.string(
+              settings.historyChartStyle == .line ? "Heatmap" : "Line", language: settings.language)
+          ) {
+            settings.historyChartStyle = settings.historyChartStyle.toggled
+          }
+          .buttonStyle(.bordered)
+          .controlSize(.small)
+          .help("Change chart style")
+        }
     }
     .background(
       GlassSurfaceStyle.sectionColor(
@@ -384,6 +393,13 @@ struct PopoverRootView: View {
         opacity: settings.glassOpacity
       )
     )
+  }
+
+  private var historyHeatmap: some View {
+    HistoryHeatmapView(samples: memoryVM.history)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Memory history")
+      .accessibilityValue(historyAccessibilityValue)
   }
 
   private var appSection: some View {
@@ -569,7 +585,7 @@ struct PopoverRootView: View {
   /// Single section title that also reflects the active user filter.
   private func sectionLabel(title: String, count: Int) -> some View {
     HStack(spacing: 4) {
-      Text(LocalizedStringKey(title))
+      Text("\(Text(LocalizedStringKey(title))) (\(count))")
         .font(.headline)
       if let selectedUser = processVM.selectedUser {
         Text("· \(selectedUser)")
@@ -578,9 +594,6 @@ struct PopoverRootView: View {
           .lineLimit(1)
       }
       Spacer()
-      Text(verbatim: String(count))
-        .font(.footnote.monospacedDigit())
-        .foregroundStyle(.secondary)
     }
   }
 
@@ -601,7 +614,13 @@ struct PopoverRootView: View {
       )
       pressureBadge(level: latestSample.pressureLevel)
     }
-    if let selectedUser = processVM.selectedUser {
+    if settings.historyChartStyle == .heatmap {
+      HistoryHeatmapScale(
+        lessLabel: AppLocalization.string("Less", language: settings.language),
+        moreLabel: AppLocalization.string("More", language: settings.language)
+      )
+    }
+    if settings.historyChartStyle == .line, let selectedUser = processVM.selectedUser {
       // Same color as the user's donut slice, so the dashed line is easy to match.
       legendItem(
         color: PopoverStyle.userColor(selectedUser),

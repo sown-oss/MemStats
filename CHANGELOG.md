@@ -4,6 +4,10 @@ All notable changes to MemStats are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Optional GitHub-style heatmap for the History section. Switch with the button in the History header or the new History chart style setting; the line chart stays the default.
+
 ### Changed
 
 - Moved the repository to `sown-oss/MemStats`. Check for Updates, Report a Bug and Support now open the new location. Old `chungxon/MemStats` links still redirect.

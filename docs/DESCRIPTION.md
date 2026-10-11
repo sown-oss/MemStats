@@ -264,7 +264,15 @@ Process timer (top):                        default every 5s, setting 3-60s
 ### Status rows
 
 * `Sampling`: current mode and the intervals the timers run at, for example `Active (5s)` while the popover is open and `Idle (15s, processes 60s)` while it is closed. When the two timers differ the process interval is listed too: `Active (2s, processes 10s)`
-* `History Samples`: number of samples currently kept
+* The sample count shows in the section headers instead of a row: `History (120)`, `Top Apps (8)`, `Top Processes (8)`
+
+### Chart style
+
+* Two styles: `Line` (default, described below) and `Heatmap`
+* A small bordered button in the History header (same placement as Clear Filter in Top Users, overlaid so it does not shift the layout) switches style; Settings has a matching `History chart style` picker. Both write the same persisted setting (`historyChartStyle`), so they never disagree
+* Heatmap is a GitHub-style grid of 7 rows, filled column by column, newest sample in the last column; slots without a sample stay empty. It shows as many of the newest samples as fit the width
+* Green intensity has 4 levels, scaled to the lowest and highest used RAM in the visible samples (a flat window shows one mid level). Warning and critical samples use their pressure color instead
+* The heatmap is not scrollable and has no selected user series; its legend shows one Less to More key (4 green levels, then orange for warning and red for critical), used RAM and the pressure badge. VoiceOver reads the same "Memory history" summary as the line chart
 
 ### Metrics (In-memory)
 
@@ -518,6 +526,7 @@ closes the popover. When the popup is open, ⌘, opens Settings directly and clo
 | --- | --- | --- |
 | Update interval (RAM, pressure, swap, menu bar, history) | 1, 2, 3, 5, 10, 15, 30, 60s | 5s |
 | Update interval for top processes (`top`) | 3, 5, 10, 15, 30, 60s | 5s |
+| History chart style | Line / Heatmap | Line |
 | Number of top apps | 5, 8, 10, 15, 20 | 8 |
 | Number of top processes | 5, 8, 10, 15, 20 | 8 |
 | Open at Login | on / off | off |
