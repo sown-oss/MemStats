@@ -25,6 +25,15 @@
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "WebSite",
+      "name": "MemStats",
+      "alternateName": [
+        "Mem Stats",
+        "memstats"
+      ],
+      "url": "https://memstats.chungxon.dev/"
+    },
+    {
       "@type": "SoftwareApplication",
       "name": "MemStats",
       "alternateName": [
@@ -184,6 +193,7 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 @media (min-width: 880px) { .hero { grid-template-columns: 1.15fr 1fr; padding: 72px 0 96px; gap: 64px; } }
 .hero > *, .grid > *, .steps > * { min-width: 0; }
 .hero .icon { width: 84px; height: 84px; border-radius: 20px; margin-bottom: 24px; }
+.eyebrow { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; color: var(--accent); margin: 0 0 10px; }
 h1 { font-size: clamp(34px, 6vw, 54px); line-height: 1.08; letter-spacing: -0.025em; margin: 0 0 18px; font-weight: 700; }
 .lead { font-size: 20px; color: var(--muted); margin: 0 0 8px; max-width: 30em; }
 .tags { font-weight: 600; margin: 0 0 28px; }
@@ -302,6 +312,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
   <header class="hero" id="top">
     <div>
       <img class="icon" src="assets/icon.png" alt="MemStats app icon" width="84" height="84">
+      <p class="eyebrow">MemStats for macOS</p>
       <h1>Know who is using your RAM.</h1>
       <p class="lead">A memory monitor for macOS that lives in the menu bar. Built for Macs shared by more than one user, and useful on every other Mac too.</p>
       <p class="tags">Lightweight. Memory only. Per user.</p>
