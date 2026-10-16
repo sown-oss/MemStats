@@ -171,9 +171,9 @@ struct PopoverRootView: View {
           ForEach(settings.visibleSections) { section in
             popoverSection(section)
           }
-          // Refresh Now lives in Top Processes, so it moves here when that section is hidden.
+          // The sampling error lives in Top Processes, so it moves here when that section is hidden.
           if !settings.isSectionVisible(.topProcesses) {
-            samplingControls
+            samplingError
           }
         }
         .padding(16)
@@ -223,10 +223,17 @@ struct PopoverRootView: View {
 
       Spacer()
 
-      Text("MemStats")
-        .font(.title3.weight(.semibold))
-
-      Spacer()
+      Button {
+        appState.sampleImmediately()
+      } label: {
+        Image(systemName: "arrow.clockwise")
+          .imageScale(.medium)
+          .frame(width: 24, height: 24)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .help("Refresh Now")
+      .accessibilityLabel("Refresh Now")
 
       Button {
         onOpenOptionsMenu()
@@ -243,6 +250,12 @@ struct PopoverRootView: View {
         MenuAnchorView(onResolve: onOptionsMenuAnchorAvailable)
           .allowsHitTesting(false)
       )
+    }
+    // An overlay keeps the title centered while the sides hold different numbers of buttons.
+    .overlay {
+      Text("MemStats")
+        .font(.title3.weight(.semibold))
+        .accessibilityAddTraits(.isHeader)
     }
   }
 
@@ -621,7 +634,7 @@ struct PopoverRootView: View {
           }
         }
 
-        samplingControls
+        samplingError
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
@@ -638,19 +651,13 @@ struct PopoverRootView: View {
   }
 
   @ViewBuilder
-  private var samplingControls: some View {
+  private var samplingError: some View {
     if let lastError = appState.lastSamplingError {
       Text(lastError)
         .font(.footnote)
         .foregroundStyle(.red)
         .lineLimit(2)
     }
-
-    Button("Refresh Now") {
-      appState.sampleImmediately()
-    }
-    .buttonStyle(.borderedProminent)
-    .controlSize(.small)
   }
 
   private func growthHintText(_ hint: MemoryGrowthHint) -> String {

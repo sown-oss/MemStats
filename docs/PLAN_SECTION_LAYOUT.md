@@ -17,7 +17,9 @@ Rules:
 
 - Order and hidden sections persist in `UserDefaults`. Unknown or duplicate values are dropped,
   and sections missing from a stored order are appended in default order.
-- When Top Processes is hidden, the sampling error and Refresh Now move below the last section.
+- Refresh Now is an icon button in the popover header, next to the gear, so hiding sections never
+  hides it.
+- When Top Processes is hidden, the sampling error moves below the last section.
 - Hiding Top Users clears its user filter, since that section is the only place to clear it.
 - Buttons, not drag and drop: `Form` rows on macOS do not support `onMove` reliably, and buttons
   work with VoiceOver and the keyboard.
@@ -32,7 +34,9 @@ Rules:
 - [x] Task 6 - Build, tests and swift-format lint
 - [x] Task 7 - CHANGELOG and README
 - [x] Task 8 - Code review
+- [x] Task 9 - Move Refresh Now to the header, next to the gear
 
-Suggested commit:
+Suggested commits:
 
-`feat(popover): let users show, hide and reorder sections`
+- `feat(popover): let users show, hide and reorder sections`
+- `feat(popover): move Refresh Now to the header`

@@ -118,15 +118,16 @@ All inside **one popup window**.
 ### Header
 
 ```text
-[Activity Monitor Icon]          [Options Icon (gear icon)]
+[Activity Monitor Icon]      MemStats      [Refresh Icon] [Options Icon (gear icon)]
 ```
 
 * Left: **Open Activity Monitor**
 
   * launched by bundle id `com.apple.ActivityMonitor` through `NSWorkspace.urlForApplication(withBundleIdentifier:)` + `openApplication(at:configuration:)`, so it works regardless of the app name or language
 
-* Right: **Open Options** (the same menu as right-clicking the menu bar item, anchored to this gear)
-* The header stays fixed above the scrolling content, with a divider; both buttons have a 24x24pt click area
+* Right: **Refresh Now** (`arrow.clockwise`), then **Open Options** (the same menu as right-clicking the menu bar item, anchored to this gear)
+* The title stays centered in the popover, even though the sides hold different numbers of buttons
+* The header stays fixed above the scrolling content, with a divider; every button has a 24x24pt click area
 * The popover is 380x540pt; the content below the header scrolls with a visible scroll indicator
 
 ---
@@ -357,8 +358,8 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 
 ### Footer
 
-* The last sampling error (if any) shows in red below the list
-* `Refresh Now` samples immediately (see §5.1 for how repeated clicks are coalesced)
+* The last sampling error (if any) shows in red below the list. When Top Processes is hidden, it shows below the last section instead
+* `Refresh Now` sits in the popover header (see §4) and samples immediately (see §5.1 for how repeated clicks are coalesced)
 
 ### Sorting
 
