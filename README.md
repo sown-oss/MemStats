@@ -41,6 +41,7 @@ Settings (⌘, in the menu bar item's menu) lets you change:
 * Update interval for RAM, pressure, swap, the menu bar and history (1 to 60s, default 5s)
 * Update interval for top processes (3 to 60s, default 5s)
 * Number of top apps and top processes shown (5 to 20, default 8)
+* Which popover sections are shown (Top Users, History, Top Apps, Top Processes) and their order
 * History chart style (line or heatmap) and, separately for top apps and top processes, list or treemap style
 * Open at Login and Show System Users
 

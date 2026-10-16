@@ -4,6 +4,10 @@ All notable changes to MemStats are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Popover sections in Settings: show or hide Top Users, History, Top Apps and Top Processes, and move them up or down. At least one section stays shown, and Reset to Default restores the original layout. Hiding Top Users clears its user filter, and hiding Top Processes moves Refresh Now below the last section.
+
 ## [1.1.0] - 11/10/2026
 
 New chart styles and app icons. The line chart and the lists stay the defaults.

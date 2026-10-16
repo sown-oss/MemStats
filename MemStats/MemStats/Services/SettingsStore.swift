@@ -32,6 +32,8 @@ final class SettingsStore: ObservableObject {
   static let topProcessesStyleKey = "topProcessesStyle"
   static let glassBackgroundKey = "glassBackground"
   static let glassOpacityKey = "glassOpacity"
+  static let sectionOrderKey = "sectionOrder"
+  static let hiddenSectionsKey = "hiddenSections"
 
   /// Seconds between memory samples (RAM, pressure, swap, menu bar, history).
   @Published var memoryInterval: Int {
@@ -117,6 +119,26 @@ final class SettingsStore: ObservableObject {
     }
   }
 
+  /// Every section once, in popover order, including hidden ones.
+  @Published private(set) var sectionOrder: [PopoverSection] {
+    didSet {
+      defaults.set(sectionOrder.map(\.rawValue), forKey: Self.sectionOrderKey)
+    }
+  }
+
+  /// Never holds every section, so the popover always shows at least one.
+  @Published private(set) var hiddenSections: Set<PopoverSection> {
+    didSet {
+      // Sorted by popover order so the stored array does not churn between launches.
+      let rawValues = sectionOrder.filter(hiddenSections.contains).map(\.rawValue)
+      defaults.set(rawValues, forKey: Self.hiddenSectionsKey)
+    }
+  }
+
+  var visibleSections: [PopoverSection] {
+    sectionOrder.filter { !hiddenSections.contains($0) }
+  }
+
   private let defaults: UserDefaults
 
   init(defaults: UserDefaults = .standard) {
@@ -140,6 +162,45 @@ final class SettingsStore: ObservableObject {
     topProcessesStyle = Self.readTopListStyle(Self.topProcessesStyleKey, from: defaults)
     glassBackground = Self.readGlassBackground(from: defaults)
     glassOpacity = Self.readGlassOpacity(from: defaults)
+    sectionOrder = PopoverSection.normalizedOrder(
+      defaults.stringArray(forKey: Self.sectionOrderKey) ?? [])
+    hiddenSections = PopoverSection.normalizedHidden(
+      defaults.stringArray(forKey: Self.hiddenSectionsKey) ?? [])
+  }
+
+  func isSectionVisible(_ section: PopoverSection) -> Bool {
+    !hiddenSections.contains(section)
+  }
+
+  /// Hiding the last visible section is ignored, so the popover never ends up empty.
+  func setSection(_ section: PopoverSection, visible: Bool) {
+    if visible {
+      hiddenSections.remove(section)
+    } else if visibleSections != [section] {
+      hiddenSections.insert(section)
+    }
+  }
+
+  func canMoveSection(_ section: PopoverSection, by offset: Int) -> Bool {
+    guard let index = sectionOrder.firstIndex(of: section) else { return false }
+    return sectionOrder.indices.contains(index + offset)
+  }
+
+  /// Swaps the section with its neighbor; `offset` is -1 for up and 1 for down.
+  func moveSection(_ section: PopoverSection, by offset: Int) {
+    guard canMoveSection(section, by: offset),
+      let index = sectionOrder.firstIndex(of: section)
+    else { return }
+    sectionOrder.swapAt(index, index + offset)
+  }
+
+  var isDefaultSectionLayout: Bool {
+    sectionOrder == PopoverSection.defaultOrder && hiddenSections.isEmpty
+  }
+
+  func resetSectionLayout() {
+    sectionOrder = PopoverSection.defaultOrder
+    hiddenSections = []
   }
 
   private static func readTheme(from defaults: UserDefaults) -> AppTheme {

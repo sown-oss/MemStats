@@ -168,18 +168,13 @@ struct PopoverRootView: View {
 
       ScrollView(.vertical, showsIndicators: true) {
         VStack(alignment: .leading, spacing: 12) {
-          DonutSectionView(
-            slices: appState.donutSlices,
-            stats: memoryVM.currentStats,
-            selectedUser: processVM.selectedUser,
-            language: settings.language,
-            glassBackgroundEnabled: useGlassBackground,
-            glassOpacity: settings.glassOpacity,
-            onSelectUser: { processVM.selectedUser = $0 }
-          )
-          historySection
-          appSection
-          processSection
+          ForEach(settings.visibleSections) { section in
+            popoverSection(section)
+          }
+          // Refresh Now lives in Top Processes, so it moves here when that section is hidden.
+          if !settings.isSectionVisible(.topProcesses) {
+            samplingControls
+          }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -188,6 +183,28 @@ struct PopoverRootView: View {
     .frame(width: Self.popoverSize.width, height: Self.popoverSize.height)
     .preferredColorScheme(settings.theme.swiftUIColorScheme)
     .environment(\.locale, settings.language.locale)
+  }
+
+  @ViewBuilder
+  private func popoverSection(_ section: PopoverSection) -> some View {
+    switch section {
+    case .topUsers:
+      DonutSectionView(
+        slices: appState.donutSlices,
+        stats: memoryVM.currentStats,
+        selectedUser: processVM.selectedUser,
+        language: settings.language,
+        glassBackgroundEnabled: useGlassBackground,
+        glassOpacity: settings.glassOpacity,
+        onSelectUser: { processVM.selectedUser = $0 }
+      )
+    case .history:
+      historySection
+    case .topApps:
+      appSection
+    case .topProcesses:
+      processSection
+    }
   }
 
   private var headerSection: some View {
@@ -604,18 +621,7 @@ struct PopoverRootView: View {
           }
         }
 
-        if let lastError = appState.lastSamplingError {
-          Text(lastError)
-            .font(.footnote)
-            .foregroundStyle(.red)
-            .lineLimit(2)
-        }
-
-        Button("Refresh Now") {
-          appState.sampleImmediately()
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
+        samplingControls
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
@@ -629,6 +635,22 @@ struct PopoverRootView: View {
         opacity: settings.glassOpacity
       )
     )
+  }
+
+  @ViewBuilder
+  private var samplingControls: some View {
+    if let lastError = appState.lastSamplingError {
+      Text(lastError)
+        .font(.footnote)
+        .foregroundStyle(.red)
+        .lineLimit(2)
+    }
+
+    Button("Refresh Now") {
+      appState.sampleImmediately()
+    }
+    .buttonStyle(.borderedProminent)
+    .controlSize(.small)
   }
 
   private func growthHintText(_ hint: MemoryGrowthHint) -> String {

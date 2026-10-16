@@ -36,6 +36,25 @@ struct SettingsView: View {
       }
 
       Section {
+        ForEach(settings.sectionOrder) { section in
+          sectionRow(section)
+        }
+        HStack {
+          Spacer()
+          Button("Reset to Default") {
+            settings.resetSectionLayout()
+          }
+          .disabled(settings.isDefaultSectionLayout)
+        }
+      } header: {
+        Text("Popover sections")
+      } footer: {
+        Text("Choose which sections the popover shows and their order. At least one stays shown.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+
+      Section {
         Picker("History chart style", selection: $settings.historyChartStyle) {
           ForEach(HistoryChartStyle.allCases) { style in
             Text(LocalizedStringKey(style.displayName)).tag(style)
@@ -179,6 +198,47 @@ struct SettingsView: View {
     .preferredColorScheme(settings.theme.swiftUIColorScheme)
     .environment(\.locale, settings.language.locale)
     .frame(width: 440)
+  }
+
+  private func sectionRow(_ section: PopoverSection) -> some View {
+    let isVisible = settings.isSectionVisible(section)
+    let name = AppLocalization.string(section.displayName, language: settings.language)
+    return HStack {
+      Toggle(
+        isOn: Binding(
+          get: { isVisible },
+          set: { settings.setSection(section, visible: $0) }
+        )
+      ) {
+        Text(LocalizedStringKey(section.displayName))
+      }
+      .toggleStyle(.checkbox)
+      // The last shown section stays on, so the popover is never empty.
+      .disabled(isVisible && settings.visibleSections.count == 1)
+
+      Spacer()
+
+      moveButton(section, name: name, offset: -1)
+      moveButton(section, name: name, offset: 1)
+    }
+  }
+
+  private func moveButton(_ section: PopoverSection, name: String, offset: Int) -> some View {
+    let isUp = offset < 0
+    return Button {
+      settings.moveSection(section, by: offset)
+    } label: {
+      Image(systemName: isUp ? "chevron.up" : "chevron.down")
+        .frame(width: 16, height: 16)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.borderless)
+    .disabled(!settings.canMoveSection(section, by: offset))
+    .help(AppLocalization.string(isUp ? "Move Up" : "Move Down", language: settings.language))
+    .accessibilityLabel(
+      AppLocalization.formatted(
+        isUp ? "Move %@ up" : "Move %@ down", language: settings.language, name)
+    )
   }
 
   private var openAtLoginBinding: Binding<Bool> {

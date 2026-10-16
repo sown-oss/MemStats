@@ -876,6 +876,78 @@ struct MemStatsTests {
     #expect(invalid.glassOpacity == SettingsStore.defaultGlassOpacity)
   }
 
+  @Test func popoverSectionNormalizationKeepsEverySectionOnce() {
+    #expect(PopoverSection.normalizedOrder([]) == PopoverSection.defaultOrder)
+    #expect(
+      PopoverSection.normalizedOrder(["topApps", "bogus", "topApps", "history"])
+        == [.topApps, .history, .topUsers, .topProcesses])
+
+    #expect(PopoverSection.normalizedHidden(["history", "bogus"]) == [.history])
+    // Hiding every section would leave an empty popover.
+    #expect(PopoverSection.normalizedHidden(PopoverSection.allCases.map(\.rawValue)).isEmpty)
+  }
+
+  @Test func settingsStoreMovesHidesAndResetsSections() {
+    let suiteName = "MemStatsTests.SettingsStore.Sections.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let store = SettingsStore(defaults: defaults)
+    #expect(store.sectionOrder == PopoverSection.defaultOrder)
+    #expect(store.visibleSections == PopoverSection.defaultOrder)
+    #expect(store.isDefaultSectionLayout)
+
+    #expect(!store.canMoveSection(.topUsers, by: -1))
+    #expect(!store.canMoveSection(.topProcesses, by: 1))
+    store.moveSection(.topUsers, by: -1)
+    #expect(store.sectionOrder == PopoverSection.defaultOrder)
+
+    store.moveSection(.topProcesses, by: -1)
+    store.moveSection(.topUsers, by: 1)
+    #expect(store.sectionOrder == [.history, .topUsers, .topProcesses, .topApps])
+
+    store.setSection(.history, visible: false)
+    #expect(!store.isSectionVisible(.history))
+    #expect(store.visibleSections == [.topUsers, .topProcesses, .topApps])
+
+    let restored = SettingsStore(defaults: defaults)
+    #expect(restored.sectionOrder == [.history, .topUsers, .topProcesses, .topApps])
+    #expect(restored.hiddenSections == [.history])
+    #expect(!restored.isDefaultSectionLayout)
+
+    // The last shown section cannot be hidden.
+    restored.setSection(.topUsers, visible: false)
+    restored.setSection(.topProcesses, visible: false)
+    restored.setSection(.topApps, visible: false)
+    #expect(restored.visibleSections == [.topApps])
+    restored.setSection(.topApps, visible: true)
+    restored.setSection(.history, visible: true)
+    #expect(restored.visibleSections == [.history, .topApps])
+
+    restored.resetSectionLayout()
+    #expect(restored.isDefaultSectionLayout)
+    let reset = SettingsStore(defaults: defaults)
+    #expect(reset.sectionOrder == PopoverSection.defaultOrder)
+    #expect(reset.hiddenSections.isEmpty)
+  }
+
+  @MainActor @Test func hidingTopUsersClearsTheUserFilter() {
+    let suiteName = "MemStatsTests.Sections.UserFilter.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let appState = MemStatsAppState(startSampling: false, defaults: defaults)
+    appState.processVM.apply(snapshots: [
+      ProcessSnapshot(user: "alice", pid: 1, rssBytes: 500, command: "/a")
+    ])
+    appState.processVM.selectedUser = "alice"
+
+    appState.settings.setSection(.history, visible: false)
+    #expect(appState.processVM.selectedUser == "alice")
+    appState.settings.setSection(.topUsers, visible: false)
+    #expect(appState.processVM.selectedUser == nil)
+  }
+
   @Test func appThemeMapsToExpectedAppearanceOverrides() {
     #expect(AppTheme.system.nsAppearance == nil)
     #expect(AppTheme.light.nsAppearance?.name == .aqua)
