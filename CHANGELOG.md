@@ -11,6 +11,7 @@ All notable changes to MemStats are documented here.
 ### Changed
 
 - Moved Refresh Now from Top Processes to an icon button in the popover header, next to the gear, so it stays reachable without scrolling.
+- Moved the History, Top apps and Top processes style pickers into the matching rows of Popover sections in Settings, so each section is set up in one place.
 
 ## [1.1.0] - 11/10/2026
 

@@ -9,7 +9,7 @@ Let users choose which popover sections are shown and in which order, from Setti
 | Sections | Top Users, History, Top Apps, Top Processes |
 | Default | All shown, in that order |
 | Location | Settings > Popover sections |
-| Controls | One toggle per section, Move Up / Move Down buttons, Reset to Default |
+| Controls | One toggle per section, its style picker, Move Up / Move Down buttons, Reset to Default |
 | Empty popover | Not allowed: the last shown section cannot be turned off |
 | Sampling | Hidden sections still sample, so the menu bar, history and hints keep working |
 
@@ -35,8 +35,10 @@ Rules:
 - [x] Task 7 - CHANGELOG and README
 - [x] Task 8 - Code review
 - [x] Task 9 - Move Refresh Now to the header, next to the gear
+- [x] Task 10 - Merge the chart style pickers into the section rows
 
 Suggested commits:
 
 - `feat(popover): let users show, hide and reorder sections`
 - `feat(popover): move Refresh Now to the header`
+- `feat(settings): merge chart style pickers into popover section rows`

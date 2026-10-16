@@ -49,30 +49,11 @@ struct SettingsView: View {
       } header: {
         Text("Popover sections")
       } footer: {
-        Text("Choose which sections the popover shows and their order. At least one stays shown.")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
-
-      Section {
-        Picker("History chart style", selection: $settings.historyChartStyle) {
-          ForEach(HistoryChartStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
-          }
-        }
-      }
-
-      Section {
-        Picker("Top apps style", selection: $settings.topAppsStyle) {
-          ForEach(TopListStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
-          }
-        }
-        Picker("Top processes style", selection: $settings.topProcessesStyle) {
-          ForEach(TopListStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
-          }
-        }
+        Text(
+          "Choose which sections the popover shows, their order and their style. At least one stays shown."
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
       }
 
       Section {
@@ -210,16 +191,60 @@ struct SettingsView: View {
           set: { settings.setSection(section, visible: $0) }
         )
       ) {
+        // Long translated names end in "…" instead of squeezing the picker; hovering shows all.
         Text(LocalizedStringKey(section.displayName))
+          .lineLimit(1)
+          .truncationMode(.tail)
       }
       .toggleStyle(.checkbox)
+      .help(name)
       // The last shown section stays on, so the popover is never empty.
       .disabled(isVisible && settings.visibleSections.count == 1)
 
       Spacer()
 
+      stylePicker(section)
+        .labelsHidden()
+        .frame(width: Self.stylePickerWidth, alignment: .trailing)
+        // A hidden section keeps its style, but greying it out shows it is not in the popover.
+        .disabled(!isVisible)
+
       moveButton(section, name: name, offset: -1)
       moveButton(section, name: name, offset: 1)
+    }
+  }
+
+  /// Fits the longest style name ("Carte de chaleur") without truncating.
+  private static let stylePickerWidth: CGFloat = 140
+
+  /// Top Users has no style, so its row keeps an empty slot to line up the move buttons.
+  @ViewBuilder
+  private func stylePicker(_ section: PopoverSection) -> some View {
+    switch section {
+    case .topUsers:
+      Color.clear
+        .frame(height: 1)
+        .accessibilityHidden(true)
+    case .history:
+      Picker("History chart style", selection: $settings.historyChartStyle) {
+        ForEach(HistoryChartStyle.allCases) { style in
+          Text(LocalizedStringKey(style.displayName)).tag(style)
+        }
+      }
+    case .topApps:
+      topListStylePicker("Top apps style", selection: $settings.topAppsStyle)
+    case .topProcesses:
+      topListStylePicker("Top processes style", selection: $settings.topProcessesStyle)
+    }
+  }
+
+  private func topListStylePicker(_ title: LocalizedStringKey, selection: Binding<TopListStyle>)
+    -> some View
+  {
+    Picker(title, selection: selection) {
+      ForEach(TopListStyle.allCases) { style in
+        Text(LocalizedStringKey(style.displayName)).tag(style)
+      }
     }
   }
 

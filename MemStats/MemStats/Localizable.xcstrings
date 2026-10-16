@@ -5807,48 +5807,48 @@
         }
       }
     },
-    "Choose which sections the popover shows and their order. At least one stays shown." : {
+    "Choose which sections the popover shows, their order and their style. At least one stays shown." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle, welche Bereiche das Popover zeigt und in welcher Reihenfolge. Mindestens einer bleibt sichtbar."
+            "value" : "Wähle, welche Bereiche das Popover zeigt, ihre Reihenfolge und ihren Stil. Mindestens einer bleibt sichtbar."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elige qué secciones muestra el popover y en qué orden. Al menos una sigue visible."
+            "value" : "Elige qué secciones muestra el popover, su orden y su estilo. Al menos una sigue visible."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisissez les sections affichées dans la fenêtre contextuelle et leur ordre. Au moins une reste affichée."
+            "value" : "Choisissez les sections affichées dans la fenêtre contextuelle, leur ordre et leur style. Au moins une reste affichée."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ポップオーバーに表示するセクションと順序を選択します。少なくとも1つは表示されたままになります。"
+            "value" : "ポップオーバーに表示するセクション、その順序、スタイルを選択します。少なくとも1つは表示されたままになります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "팝오버에 표시할 섹션과 순서를 선택합니다. 최소 하나는 계속 표시됩니다."
+            "value" : "팝오버에 표시할 섹션, 순서, 스타일을 선택합니다. 최소 하나는 계속 표시됩니다."
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chọn các mục hiển thị trong popover và thứ tự của chúng. Luôn giữ lại ít nhất một mục."
+            "value" : "Chọn các mục hiển thị trong popover, thứ tự và kiểu hiển thị của chúng. Luôn giữ lại ít nhất một mục."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "选择弹出窗口显示哪些分区及其顺序。至少保留一个分区。"
+            "value" : "选择弹出窗口显示哪些分区、它们的顺序和样式。至少保留一个分区。"
           }
         }
       }
