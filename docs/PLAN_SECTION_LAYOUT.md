@@ -37,6 +37,9 @@ Rules:
 - [x] Task 9 - Move Refresh Now to the header, next to the gear
 - [x] Task 10 - Merge the chart style pickers into the section rows
 - [x] Task 11 - Fix `AppLocalization` ignoring the language chosen in Settings
+- [x] Task 12 - Release builds use the project build number instead of always `1`
+- [x] Task 13 - Prepare v1.2.0: `MARKETING_VERSION` 1.2.0, build 3
+- [ ] Task 14 - After merge: tag, GitHub release, website screenshot on `page`
 
 Suggested commits:
 
@@ -44,3 +47,5 @@ Suggested commits:
 - `feat(popover): move Refresh Now to the header`
 - `feat(settings): merge chart style pickers into popover section rows`
 - `fix(localization): look up strings in the chosen language`
+- `fix(release): use the project build number`
+- `chore(release): prepare v1.2.0`
