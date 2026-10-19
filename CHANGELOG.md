@@ -2,7 +2,9 @@
 
 All notable changes to MemStats are documented here.
 
-## [Unreleased]
+## [1.2.0] - 19/10/2026
+
+Customizable popover sections. All sections stay shown in the original order by default.
 
 ### Added
 
