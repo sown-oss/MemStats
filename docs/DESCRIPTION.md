@@ -118,15 +118,16 @@ All inside **one popup window**.
 ### Header
 
 ```text
-[Activity Monitor Icon]          [Options Icon (gear icon)]
+[Activity Monitor Icon]      MemStats      [Refresh Icon] [Options Icon (gear icon)]
 ```
 
 * Left: **Open Activity Monitor**
 
   * launched by bundle id `com.apple.ActivityMonitor` through `NSWorkspace.urlForApplication(withBundleIdentifier:)` + `openApplication(at:configuration:)`, so it works regardless of the app name or language
 
-* Right: **Open Options** (the same menu as right-clicking the menu bar item, anchored to this gear)
-* The header stays fixed above the scrolling content, with a divider; both buttons have a 24x24pt click area
+* Right: **Refresh Now** (`arrow.clockwise`), then **Open Options** (the same menu as right-clicking the menu bar item, anchored to this gear)
+* The title stays centered in the popover, even though the sides hold different numbers of buttons
+* The header stays fixed above the scrolling content, with a divider; every button has a 24x24pt click area
 * The popover is 380x540pt; the content below the header scrolls with a visible scroll indicator
 
 ---
@@ -267,7 +268,7 @@ Process timer (top):                        default every 5s, setting 3-60s
 
 ## 6b. Top Lists Treemap
 
-* `Top Apps` and `Top Processes` each have their own style setting (`topAppsStyle`, `topProcessesStyle`): `List` (default) or `Treemap`. A bordered button in each header and the `Top apps style` / `Top processes style` pickers in Settings change it; the header button is overlaid so the header height does not change
+* `Top Apps` and `Top Processes` each have their own style setting (`topAppsStyle`, `topProcessesStyle`): `List` (default) or `Treemap`. A bordered button in each header and the style pickers in the Top Apps and Top Processes rows of Settings > Popover sections change it; the header button is overlaid so the header height does not change
 * Squarified treemap of the rows the list would show (same user filter and row count). Tile area is memory (app total, or process RSS)
 * Tile text, most important first: name, MEM, then `PID n` (processes) or process count (apps), then the user. The user line only shows for processes when the visible rows come from more than one user. Lines that do not fit are dropped from the least important end; tiles too small for any text show color only. No percentage is printed on tiles
 * Tile color is the change since the previous sample: red = higher, green = lower, gray = within 0.5% or no earlier reading (new process). Strength has 3 steps, at 0.5%, 2% and 5%. For apps the earlier value is measured inside the current user filter. The key under the chart is one `Lower` to `Higher` scale with a short caption; the tooltip and VoiceOver label give name, PID, memory and user
@@ -283,7 +284,7 @@ Process timer (top):                        default every 5s, setting 3-60s
 ### Chart style
 
 * Two styles: `Line` (default, described below) and `Heatmap`
-* A small bordered button in the History header (same placement as Clear Filter in Top Users, overlaid so it does not shift the layout) switches style; Settings has a matching `History chart style` picker. Both write the same persisted setting (`historyChartStyle`), so they never disagree
+* A small bordered button in the History header (same placement as Clear Filter in Top Users, overlaid so it does not shift the layout) switches style; the History row of Settings > Popover sections has a matching picker. Both write the same persisted setting (`historyChartStyle`), so they never disagree
 * Heatmap is a GitHub-style grid of 7 rows, filled column by column, newest sample in the last column; slots without a sample stay empty. It shows as many of the newest samples as fit the width
 * Green intensity has 4 levels, scaled to the lowest and highest used RAM in the visible samples (a flat window shows one mid level). Warning and critical samples use their pressure color instead
 * The heatmap is not scrollable and has no selected user series; its legend shows one Less to More key (4 green levels, then orange for warning and red for critical), used RAM and the pressure badge. VoiceOver reads the same "Memory history" summary as the line chart
@@ -357,8 +358,8 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 
 ### Footer
 
-* The last sampling error (if any) shows in red below the list
-* `Refresh Now` samples immediately (see §5.1 for how repeated clicks are coalesced)
+* The last sampling error (if any) shows in red below the list. When Top Processes is hidden, it shows below the last section instead
+* `Refresh Now` sits in the popover header (see §4) and samples immediately (see §5.1 for how repeated clicks are coalesced)
 
 ### Sorting
 
@@ -540,9 +541,11 @@ closes the popover. When the popup is open, ⌘, opens Settings directly and clo
 | --- | --- | --- |
 | Update interval (RAM, pressure, swap, menu bar, history) | 1, 2, 3, 5, 10, 15, 30, 60s | 5s |
 | Update interval for top processes (`top`) | 3, 5, 10, 15, 30, 60s | 5s |
-| History chart style | Line / Heatmap | Line |
-| Top apps style | List / Treemap | List |
-| Top processes style | List / Treemap | List |
+| Popover sections: shown | Top Users, History, Top Apps, Top Processes | all shown |
+| Popover sections: order | Move Up / Move Down | Top Users, History, Top Apps, Top Processes |
+| History chart style (History row) | Line / Heatmap | Line |
+| Top apps style (Top Apps row) | List / Treemap | List |
+| Top processes style (Top Processes row) | List / Treemap | List |
 | Number of top apps | 5, 8, 10, 15, 20 | 8 |
 | Number of top processes | 5, 8, 10, 15, 20 | 8 |
 | Open at Login | on / off | off |
@@ -551,7 +554,8 @@ closes the popover. When the popup is open, ⌘, opens Settings directly and clo
 * Stored in `UserDefaults`, applied right away. A stored value outside the options falls back to the default.
 * `top` takes about 1.4s per run, so the process interval starts at 3s. Short intervals cost more CPU, mostly for the process timer.
 * Window: a self-managed `NSWindow` + `NSHostingController` (the app is an `LSUIElement` accessory, and opening a SwiftUI `Settings` scene from an `NSMenu` is not reliable). Opening it activates the app and brings the window to the front; reopening reuses the same window. ⌘Q and ⌘W close Settings only, without terminating the app. The popup handles the same shortcuts locally. The app is terminated from the context menu's Quit item, including its ⌘Q equivalent while the menu is open.
-* Layout: `Form` with `.formStyle(.grouped)` and `.menu` pickers in four sections (intervals, row counts, Open at Login + Show System Users, About).
+* Layout: `Form` with `.formStyle(.grouped)` and `.menu` pickers, grouped by topic (theme and language, popover sections, glass, intervals, row counts, Open at Login + Show System Users, About, Support Us).
+* Popover sections: one row per section with a checkbox (a long translated name truncates with "…" and shows in full on hover), a style picker in a fixed-width column (Top Users has none, so its slot stays empty to keep the move buttons aligned), then Move Up and Move Down. The picker is greyed out while its section is hidden. The last shown section's checkbox is disabled, so the popover is never empty. Reset to Default restores all sections in the default order; it keeps the chart styles.
 * About section: the app version and build, plus two buttons that only open the browser (the app makes no network request):
   * Check for Updates… opens `github.com/sown-oss/MemStats/releases/latest`. There is no version check; the user compares it with the version shown above.
   * Report a Bug… opens `issues/new` with a `[Bug] ` title, the `bug` label and a body template (description, steps, expected behavior) whose Environment part is filled in: app version and build, macOS version, Mac model and architecture.

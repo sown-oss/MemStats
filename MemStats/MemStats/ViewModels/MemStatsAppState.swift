@@ -124,6 +124,14 @@ final class MemStatsAppState: ObservableObject {
       }
       .store(in: &cancellables)
 
+    // The user filter can only be cleared from Top Users, so hiding that section clears it.
+    settings.$hiddenSections
+      .filter { $0.contains(.topUsers) }
+      .sink { [weak self] _ in
+        self?.processVM.selectedUser = nil
+      }
+      .store(in: &cancellables)
+
     if startSampling {
       restartTimers()
     }

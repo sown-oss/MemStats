@@ -8,7 +8,8 @@ the quarantine attribute). Those steps live in the README only: do not repeat th
 ## 1. Prepare the release
 
 1. Update `MARKETING_VERSION` in `MemStats/MemStats.xcodeproj/project.pbxproj` to the next three-part
-   version, for example `1.0.0`.
+   version, for example `1.0.0`, and raise `CURRENT_PROJECT_VERSION` by one. The release build uses
+   both as they are, and About shows them as `1.0.0 (1)`.
 2. Update `CHANGELOG.md` with the release status and user-visible changes. Before publishing,
    replace `Unreleased` with the actual publication date.
    List only user-visible changes (Added, Changed, Fixed). Do not copy the `Distribution` block
@@ -109,5 +110,5 @@ The script has already selected the `1.0.0` section and appended the checksum to
 
 5. Smoke-test the menu bar item, donut, history, Settings, Open at Login, Show System Users,
    Check for Updates, Report a Bug, About and Quit.
-6. Confirm the About or Settings version is the release version and that the latest-release link
-   opens the new GitHub release.
+6. Confirm the About or Settings version and build number match the project and that the
+   latest-release link opens the new GitHub release.

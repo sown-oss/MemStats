@@ -36,24 +36,24 @@ struct SettingsView: View {
       }
 
       Section {
-        Picker("History chart style", selection: $settings.historyChartStyle) {
-          ForEach(HistoryChartStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
-          }
+        ForEach(settings.sectionOrder) { section in
+          sectionRow(section)
         }
-      }
-
-      Section {
-        Picker("Top apps style", selection: $settings.topAppsStyle) {
-          ForEach(TopListStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
+        HStack {
+          Spacer()
+          Button("Reset to Default") {
+            settings.resetSectionLayout()
           }
+          .disabled(settings.isDefaultSectionLayout)
         }
-        Picker("Top processes style", selection: $settings.topProcessesStyle) {
-          ForEach(TopListStyle.allCases) { style in
-            Text(LocalizedStringKey(style.displayName)).tag(style)
-          }
-        }
+      } header: {
+        Text("Popover sections")
+      } footer: {
+        Text(
+          "Choose which sections the popover shows, their order and their style. At least one stays shown."
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
       }
 
       Section {
@@ -179,6 +179,91 @@ struct SettingsView: View {
     .preferredColorScheme(settings.theme.swiftUIColorScheme)
     .environment(\.locale, settings.language.locale)
     .frame(width: 440)
+  }
+
+  private func sectionRow(_ section: PopoverSection) -> some View {
+    let isVisible = settings.isSectionVisible(section)
+    let name = AppLocalization.string(section.displayName, language: settings.language)
+    return HStack {
+      Toggle(
+        isOn: Binding(
+          get: { isVisible },
+          set: { settings.setSection(section, visible: $0) }
+        )
+      ) {
+        // Long translated names end in "…" instead of squeezing the picker; hovering shows all.
+        Text(LocalizedStringKey(section.displayName))
+          .lineLimit(1)
+          .truncationMode(.tail)
+      }
+      .toggleStyle(.checkbox)
+      .help(name)
+      // The last shown section stays on, so the popover is never empty.
+      .disabled(isVisible && settings.visibleSections.count == 1)
+
+      Spacer()
+
+      stylePicker(section)
+        .labelsHidden()
+        .frame(width: Self.stylePickerWidth, alignment: .trailing)
+        // A hidden section keeps its style, but greying it out shows it is not in the popover.
+        .disabled(!isVisible)
+
+      moveButton(section, name: name, offset: -1)
+      moveButton(section, name: name, offset: 1)
+    }
+  }
+
+  /// Fits the longest style name ("Carte de chaleur") without truncating.
+  private static let stylePickerWidth: CGFloat = 140
+
+  /// Top Users has no style, so its row keeps an empty slot to line up the move buttons.
+  @ViewBuilder
+  private func stylePicker(_ section: PopoverSection) -> some View {
+    switch section {
+    case .topUsers:
+      Color.clear
+        .frame(height: 1)
+        .accessibilityHidden(true)
+    case .history:
+      Picker("History chart style", selection: $settings.historyChartStyle) {
+        ForEach(HistoryChartStyle.allCases) { style in
+          Text(LocalizedStringKey(style.displayName)).tag(style)
+        }
+      }
+    case .topApps:
+      topListStylePicker("Top apps style", selection: $settings.topAppsStyle)
+    case .topProcesses:
+      topListStylePicker("Top processes style", selection: $settings.topProcessesStyle)
+    }
+  }
+
+  private func topListStylePicker(_ title: LocalizedStringKey, selection: Binding<TopListStyle>)
+    -> some View
+  {
+    Picker(title, selection: selection) {
+      ForEach(TopListStyle.allCases) { style in
+        Text(LocalizedStringKey(style.displayName)).tag(style)
+      }
+    }
+  }
+
+  private func moveButton(_ section: PopoverSection, name: String, offset: Int) -> some View {
+    let isUp = offset < 0
+    return Button {
+      settings.moveSection(section, by: offset)
+    } label: {
+      Image(systemName: isUp ? "chevron.up" : "chevron.down")
+        .frame(width: 16, height: 16)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.borderless)
+    .disabled(!settings.canMoveSection(section, by: offset))
+    .help(AppLocalization.string(isUp ? "Move Up" : "Move Down", language: settings.language))
+    .accessibilityLabel(
+      AppLocalization.formatted(
+        isUp ? "Move %@ up" : "Move %@ down", language: settings.language, name)
+    )
   }
 
   private var openAtLoginBinding: Binding<Bool> {

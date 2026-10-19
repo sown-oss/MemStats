@@ -108,8 +108,7 @@ xcodebuild archive \
   CODE_SIGN_IDENTITY=- \
   CODE_SIGN_STYLE=Manual \
   DEVELOPMENT_TEAM= \
-  MARKETING_VERSION="$VERSION" \
-  CURRENT_PROJECT_VERSION=1
+  MARKETING_VERSION="$VERSION"
 
 [ -d "$APP_PATH" ] || fail "archive did not contain MemStats.app"
 
