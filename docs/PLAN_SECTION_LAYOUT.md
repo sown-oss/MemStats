@@ -36,9 +36,11 @@ Rules:
 - [x] Task 8 - Code review
 - [x] Task 9 - Move Refresh Now to the header, next to the gear
 - [x] Task 10 - Merge the chart style pickers into the section rows
+- [x] Task 11 - Fix `AppLocalization` ignoring the language chosen in Settings
 
 Suggested commits:
 
 - `feat(popover): let users show, hide and reorder sections`
 - `feat(popover): move Refresh Now to the header`
 - `feat(settings): merge chart style pickers into popover section rows`
+- `fix(localization): look up strings in the chosen language`

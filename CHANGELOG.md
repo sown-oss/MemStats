@@ -15,6 +15,10 @@ Customizable popover sections. All sections stay shown in the original order by 
 - Moved Refresh Now from Top Processes to an icon button in the popover header, next to the gear, so it stays reachable without scrolling.
 - Moved the History, Top apps and Top processes style pickers into the matching rows of Popover sections in Settings, so each section is set up in one place.
 
+### Fixed
+
+- Labels that did not follow the language chosen in Settings now do: update intervals, the Settings window title, the right-click menu, popover legends, tooltips and VoiceOver labels showed the macOS language instead.
+
 ## [1.1.0] - 11/10/2026
 
 New chart styles and app icons. The line chart and the lists stay the defaults.

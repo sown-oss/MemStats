@@ -1057,6 +1057,19 @@ struct MemStatsTests {
     #expect(AppLanguage.allCases.count == 9)
   }
 
+  @MainActor @Test func appLocalizationUsesTheChosenLanguage() {
+    #expect(AppLocalization.string("%lld seconds", language: .vietnamese) == "%lld giây")
+    #expect(AppLocalization.string("Heatmap", language: .french) == "Carte de chaleur")
+    #expect(AppLocalization.formatted("%lld seconds", language: .german, Int64(5)) == "5 Sekunden")
+    #expect(AppLocalization.string("Move Up", language: .english) == "Move Up")
+    #expect(AppLocalization.string("not a key", language: .japanese) == "not a key")
+
+    // Every translated language reads from its own strings, not the system language.
+    for language in AppLanguage.allCases where language != .system && language != .english {
+      #expect(AppLocalization.string("Move Up", language: language) != "Move Up")
+    }
+  }
+
   @Test func languageChangesPublishImmediately() {
     let suiteName = "MemStatsTests.SettingsStore.LanguagePublisher"
     let defaults = UserDefaults(suiteName: suiteName)!
