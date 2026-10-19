@@ -18,6 +18,7 @@ Customizable popover sections. All sections stay shown in the original order by 
 ### Fixed
 
 - Labels that did not follow the language chosen in Settings now do: update intervals, the Settings window title, the right-click menu, popover legends, tooltips and VoiceOver labels showed the macOS language instead.
+- About, Settings and bug reports now show the real build number. Earlier releases always showed build 1.
 
 ## [1.1.0] - 11/10/2026
 
