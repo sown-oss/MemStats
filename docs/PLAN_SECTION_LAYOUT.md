@@ -39,7 +39,7 @@ Rules:
 - [x] Task 11 - Fix `AppLocalization` ignoring the language chosen in Settings
 - [x] Task 12 - Release builds use the project build number instead of always `1`
 - [x] Task 13 - Prepare v1.2.0: `MARKETING_VERSION` 1.2.0, build 3
-- [ ] Task 14 - After merge: tag, GitHub release, website screenshot on `page`
+- [x] Task 14 - After merge: tag, GitHub release, website screenshot on `page`
 
 Suggested commits:
 
