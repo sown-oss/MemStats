@@ -49,6 +49,8 @@ Rules:
   Quit looked done when it was still waiting. Quit of an app now runs right away, the bar
   replaces the row (or covers the treemap) with Return to confirm, and the row shows
   `Quitting…` until the app exits, or an error after 10s
+- [x] Task 14 - Release as `1.3.0 (4)`: `MARKETING_VERSION` 1.3.0, `CURRENT_PROJECT_VERSION` 4,
+  CHANGELOG section `1.3.0`
 
 Suggested commit:
 

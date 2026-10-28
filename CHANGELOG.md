@@ -2,7 +2,9 @@
 
 All notable changes to MemStats are documented here.
 
-## [Unreleased]
+## [1.3.0] - 28/10/2026
+
+Quit and Force Quit apps and processes from the popover.
 
 ### Added
 
