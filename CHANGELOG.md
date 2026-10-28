@@ -8,6 +8,10 @@ All notable changes to MemStats are documented here.
 
 - Quit and Force Quit from the popover: right-click an app in Top Apps or a process in Top Processes, in the list or the treemap, then confirm in the bar shown in that section. Only your own processes can be quit; other users' processes and protected system processes are shown with the reason instead. Top Processes also has Copy PID.
 
+### Fixed
+
+- Top Apps grouped an app that updated itself while running apart from its helpers, listed under a shortened name. It is now grouped with them again.
+
 ## [1.2.0] - 19/10/2026
 
 Customizable popover sections. All sections stay shown in the original order by default.

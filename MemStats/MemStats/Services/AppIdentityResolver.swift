@@ -6,7 +6,9 @@ enum AppIdentityResolver {
     var identities: [Int32: AppIdentity] = [:]
     var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
     for pid in pids {
-      guard let path = executablePath(for: pid, buffer: &buffer) else { continue }
+      guard let path = executablePath(for: pid, buffer: &buffer) ?? launchPath(for: pid) else {
+        continue
+      }
       identities[pid] = identity(forExecutablePath: path)
     }
     return identities
@@ -46,6 +48,30 @@ enum AppIdentityResolver {
 
     let bytes = buffer.prefix(length).map { UInt8(bitPattern: $0) }
     return String(decoding: bytes, as: UTF8.self)
+  }
+
+  /// The path the process was started from, kept with its arguments. `proc_pidpath` fails once
+  /// the executable is deleted, as when an app updates itself while running, and the app would
+  /// then be grouped apart from its helpers. Only readable for the current user's processes.
+  nonisolated static func launchPath(for pid: Int32) -> String? {
+    guard pid > 0 else { return nil }
+    var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+    var size = 0
+    guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0, size > 0 else { return nil }
+    var bytes = [UInt8](repeating: 0, count: size)
+    guard sysctl(&mib, u_int(mib.count), &bytes, &size, nil, 0) == 0,
+      let path = launchPath(fromArguments: Array(bytes.prefix(size)))
+    else { return nil }
+    // Unlike `proc_pidpath`, this is the path as typed, which can go through a symlink or `..`.
+    return URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+  }
+
+  /// Reads the executable path that follows `argc` in a `KERN_PROCARGS2` buffer. A relative path
+  /// depends on the process's working directory, so it is ignored.
+  nonisolated static func launchPath(fromArguments bytes: [UInt8]) -> String? {
+    let path = bytes.dropFirst(MemoryLayout<Int32>.size).prefix { $0 != 0 }
+    guard path.first == UInt8(ascii: "/") else { return nil }
+    return String(decoding: path, as: UTF8.self)
   }
 }
 

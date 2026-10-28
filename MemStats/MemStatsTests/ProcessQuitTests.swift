@@ -7,12 +7,19 @@ import Testing
 struct ProcessQuitTests {
   private final class StubProcessTerminator: ProcessTerminating {
     var targetsByPID: [Int32: ProcessTarget] = [:]
+    var parentAppsByBundle: [String: [ProcessTarget]] = [:]
     var error: ProcessTerminationError?
+    private(set) var parentAppBundles: [String] = []
     private(set) var terminatedTargets: [[ProcessTarget]] = []
     private(set) var terminatedModes: [ProcessQuitMode] = []
 
     func target(pid: Int32) -> ProcessTarget? {
       targetsByPID[pid]
+    }
+
+    func parentApps(of targets: [ProcessTarget], bundlePath: String) -> [ProcessTarget] {
+      parentAppBundles.append(bundlePath)
+      return parentAppsByBundle[bundlePath] ?? []
     }
 
     func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode)
@@ -168,6 +175,16 @@ struct ProcessQuitTests {
     #expect(throws: ProcessTerminationError.notOwned) {
       try terminator.terminate([launchd], mode: .quit)
     }
+  }
+
+  @MainActor @Test func terminatorFindsNoParentAppOutsideTheBundle() throws {
+    let process = try Self.launchSleep()
+    defer { process.terminate() }
+    let terminator = ProcessTerminator()
+    let target = try #require(terminator.target(pid: process.processIdentifier))
+
+    // The test host launched `sleep`, but it is not the app of this bundle.
+    #expect(terminator.parentApps(of: [target], bundlePath: "/Applications/None.app").isEmpty)
   }
 
   // MARK: - ProcessViewModel
@@ -328,6 +345,55 @@ struct ProcessQuitTests {
     #expect(appState.pendingQuit?.skipsOtherUsers == true)
     #expect(appState.pendingQuit?.pid == nil)
     #expect(appState.quitFailure == nil)
+  }
+
+  @MainActor @Test func appQuitAddsTheAppMissingFromItsGroup() throws {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    terminator.targetsByPID[101] = Self.target(pid: 101)
+    // The app updated itself while running, so only its helpers resolved to the bundle.
+    terminator.parentAppsByBundle["/A.app"] = [Self.target(pid: 50)]
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let appState = Self.makeAppState(terminator: terminator, suiteName: "MemStatsTests.QuitParent")
+    appState.applySample(
+      stats: nil,
+      processes: [
+        ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "A Helper"),
+        ProcessSnapshot(user: "alice", pid: 101, rssBytes: 400, command: "A Helper"),
+      ],
+      appIdentities: [100: app, 101: app]
+    )
+    let usage = try #require(appState.processVM.visibleApps.first)
+
+    appState.requestQuit(app: usage, mode: .quit)
+
+    #expect(terminator.parentAppBundles == ["/A.app"])
+    #expect(
+      appState.pendingQuit?.targets
+        == [Self.target(pid: 100), Self.target(pid: 101), Self.target(pid: 50)])
+  }
+
+  @MainActor @Test func parentAppIsOnlyLookedUpForAppBundles() throws {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    terminator.targetsByPID[101] = Self.target(pid: 101)
+    let tool = AppIdentity(id: "exec:/usr/bin/tool", name: "tool", path: "/usr/bin/tool")
+    let appState = Self.makeAppState(terminator: terminator, suiteName: "MemStatsTests.QuitTool")
+    let toolProcess = ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "tool")
+    let helper = ProcessSnapshot(user: "alice", pid: 101, rssBytes: 400, command: "A Helper")
+    appState.applySample(
+      stats: nil,
+      processes: [toolProcess, helper],
+      appIdentities: [100: tool]
+    )
+    let usage = try #require(appState.processVM.visibleApps.first { $0.name == "tool" })
+
+    appState.requestQuit(app: usage, mode: .quit)
+    appState.requestQuit(process: helper, mode: .quit)
+
+    #expect(usage.bundlePath == nil)
+    #expect(terminator.parentAppBundles.isEmpty)
+    #expect(appState.pendingQuit?.targets == [Self.target(pid: 101)])
   }
 
   @MainActor @Test func pendingQuitIsDroppedWhenProcessExitsOrPopoverCloses() {

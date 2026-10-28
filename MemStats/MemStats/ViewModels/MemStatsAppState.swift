@@ -204,6 +204,7 @@ final class MemStatsAppState: ObservableObject {
       name: processVM.displayName(for: process),
       pid: process.pid,
       pids: [process.pid],
+      bundlePath: nil,
       mode: mode,
       section: .topProcesses,
       skipsOtherUsers: false
@@ -218,6 +219,7 @@ final class MemStatsAppState: ObservableObject {
       name: app.name,
       pid: nil,
       pids: pids,
+      bundlePath: app.bundlePath,
       mode: mode,
       section: .topApps,
       skipsOtherUsers: processVM.hasOtherUsersProcesses(app)
@@ -248,11 +250,13 @@ final class MemStatsAppState: ObservableObject {
   }
 
   /// Captures each process as it is now. A process that started after the snapshot that showed
-  /// it is not the one the user picked, so it is left out.
+  /// it is not the one the user picked, so it is left out. For an app, the app that launched
+  /// the processes is added when it is missing from them, so Quit asks the app itself.
   private func requestQuit(
     name: String,
     pid: Int32?,
     pids: [Int32],
+    bundlePath: String?,
     mode: ProcessQuitMode,
     section: PopoverSection,
     skipsOtherUsers: Bool
@@ -277,6 +281,9 @@ final class MemStatsAppState: ObservableObject {
       pendingQuit = nil
       quitFailure = QuitFailure(section: section, error: firstError ?? .notRunning)
       return
+    }
+    if let bundlePath {
+      targets += processTerminator.parentApps(of: targets, bundlePath: bundlePath)
     }
     pendingQuit = QuitRequest(
       name: name,

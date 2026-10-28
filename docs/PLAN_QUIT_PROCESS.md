@@ -12,7 +12,7 @@ opening Activity Monitor.
 | Confirmation | Inline bar inside the section. Esc cancels it before closing the popup. Both Quit and Force Quit ask |
 | Other users | Quit and Force Quit are disabled, and the menu shows the reason. No admin prompt, no privileged helper |
 | Protected | PID 0 and 1, MemStats itself, `kernel_task`, `launchd`, `loginwindow`, `WindowServer` |
-| Apps | Only the current user's processes of the app are signaled. Quit asks only the regular GUI app when there is one; otherwise, and always for Force Quit, every own process is signaled |
+| Apps | Only the current user's processes of the app are signaled. Quit asks only the regular GUI app when there is one, or the app of the same bundle that launched them; otherwise, and always for Force Quit, every own process is signaled |
 | Processes | Regular GUI apps use `NSRunningApplication`, agents, helpers and the rest get SIGTERM (Quit) or SIGKILL (Force Quit) |
 | After | A process sample runs 0.5s later, so the list updates |
 
@@ -40,6 +40,10 @@ Rules:
   signals the whole app, Esc cancels the confirmation first, VoiceOver actions
 - [ ] Task 11 - Verify on device: right-click menu in List and Treemap, inline bar, Esc, Quit and
   Force Quit of a GUI app and a CLI process, disabled items for another user's process
+- [x] Task 12 - Fix: Quit on an app that updated itself while running crashed its helpers
+  (SIGTERM) and left the app running. Its executable was deleted, so `proc_pidpath` failed and
+  the app was grouped apart from its helpers. The launch path now comes from `KERN_PROCARGS2`,
+  and Quit adds the parent app of the same bundle when the group has no regular app
 
 Suggested commit:
 

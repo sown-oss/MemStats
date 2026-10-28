@@ -35,6 +35,9 @@ nonisolated enum ProcessTerminationError: Error, Equatable {
 
 protocol ProcessTerminating {
   func target(pid: Int32) -> ProcessTarget?
+  /// The running app of `bundlePath` that launched these processes, when none of them is that
+  /// app. Empty when one of them is a regular app or no parent matches.
+  func parentApps(of targets: [ProcessTarget], bundlePath: String) -> [ProcessTarget]
   /// Checks every target again, then signals them. Throws only when nothing was signaled.
   func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode) throws(ProcessTerminationError)
 }
@@ -52,12 +55,7 @@ struct ProcessTerminator: ProcessTerminating {
 
   /// Reads the process from `sysctl`, which works for every user's processes without privileges.
   nonisolated func target(pid: Int32) -> ProcessTarget? {
-    guard pid > 0 else { return nil }
-    var info = kinfo_proc()
-    var size = MemoryLayout<kinfo_proc>.stride
-    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
-    guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
-
+    guard let info = Self.processInfo(pid: pid) else { return nil }
     let start = info.kp_proc.p_un.__p_starttime
     let name = withUnsafeBytes(of: info.kp_proc.p_comm) { buffer in
       String(decoding: buffer.prefix { $0 != 0 }, as: UTF8.self)
@@ -68,6 +66,38 @@ struct ProcessTerminator: ProcessTerminating {
       startMicroseconds: Int64(start.tv_sec) * 1_000_000 + Int64(start.tv_usec),
       name: name
     )
+  }
+
+  /// An app that updated itself while running can be missing from its own group, since its
+  /// executable is gone. Quit would then only signal its helpers, which crashes them while the
+  /// app keeps running, so the app that launched them is asked instead.
+  func parentApps(of targets: [ProcessTarget], bundlePath: String) -> [ProcessTarget] {
+    guard !targets.contains(where: { Self.regularApp(pid: $0.pid) != nil }) else { return [] }
+    let bundle = URL(fileURLWithPath: bundlePath).resolvingSymlinksInPath().path
+    var parents: [ProcessTarget] = []
+    for target in targets {
+      guard let parentPID = Self.processInfo(pid: target.pid)?.kp_eproc.e_ppid,
+        !parents.contains(where: { $0.pid == parentPID }),
+        let app = Self.regularApp(pid: parentPID),
+        app.bundleURL?.resolvingSymlinksInPath().path == bundle,
+        let parent = self.target(pid: parentPID),
+        // A parent that started after its child is a reused PID.
+        parent.startMicroseconds <= target.startMicroseconds,
+        parent.uid == getuid(),
+        !Self.isProtected(pid: parentPID, name: parent.name)
+      else { continue }
+      parents.append(parent)
+    }
+    return parents
+  }
+
+  nonisolated private static func processInfo(pid: Int32) -> kinfo_proc? {
+    guard pid > 0 else { return nil }
+    var info = kinfo_proc()
+    var size = MemoryLayout<kinfo_proc>.stride
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+    guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+    return info
   }
 
   func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode) throws(ProcessTerminationError)

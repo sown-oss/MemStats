@@ -31,7 +31,7 @@ All inside **one popup window**.
     * `vm.memory_pressure` is not used: it is a reclaim activity counter, not a level
     * Fallback when the sysctl is unavailable: used/total ratio (≥ 75% warning, ≥ 90% critical)
   * `top -l 1 -F -o mem -stats pid,user,mem,command` → processes
-  * `proc_pidpath(pid)` → executable path, used to group processes by app
+  * `proc_pidpath(pid)` → executable path, used to group processes by app (`KERN_PROCARGS2` launch path when the executable was deleted)
 * State:
 
   * `ObservableObject` (single source of truth)
@@ -375,6 +375,7 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * Path inside an `.app` bundle → group by the **outermost** `.app` bundle
   * e.g. `Visual Studio Code.app/.../Code Helper (Renderer).app/...` → `Visual Studio Code`
 * Path outside any bundle → group by executable path (name = executable file name)
+* `proc_pidpath` fails once the executable is deleted, as when an app updates itself while running. The launch path is then read from the process arguments (`sysctl(KERN_PROCARGS2)`, own processes only, absolute paths only), so the app stays grouped with its helpers
 * Path not resolvable → fallback to the `top` command name
 
 ### Display
@@ -407,6 +408,7 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * Right before signaling, each process is read again: same start time, uid equal to `getuid()`, not protected
 * Regular GUI apps: `NSRunningApplication.terminate()` (Quit, same as the Dock) or `forceTerminate()` (Force Quit). Agents, helpers and other processes, or when the request cannot be sent: `kill` with SIGTERM (Quit) or SIGKILL (Force Quit), since agents often ignore the quit request
 * Quit on an app signals only its regular GUI processes when it has any, since its helpers exit with it and the app can still save its work. Otherwise, and always for Force Quit, every own process of the app is signaled
+* When an `.app` group has no regular GUI process, the regular app that launched its processes (parent PID) is added when its bundle is the same, it belongs to the current user and it is not protected. Signaling only the helpers of a running app crashes its tabs or windows while the app keeps running
 * Errors show in red in the same section, with a dismiss button. A process sample runs 0.5s after signaling so the list updates
 
 ---
