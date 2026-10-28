@@ -44,7 +44,7 @@
       "url": "https://memstats.chungxon.dev/",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "macOS 14 Sonoma or later",
-      "softwareVersion": "1.2.0",
+      "softwareVersion": "1.3.0",
       "downloadUrl": "https://github.com/sown-oss/MemStats/releases/latest",
       "image": "https://memstats.chungxon.dev/assets/og.png",
       "screenshot": "https://memstats.chungxon.dev/assets/demo-poster.webp",
@@ -99,6 +99,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Memory sampling is cheap. Each process update runs top, about 1.4 seconds of work, so the process interval is the setting that matters. While the popover is closed, RAM updates at most every 15 seconds and processes every 60."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I quit an app from MemStats?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Right-click it in Top Apps or Top Processes and pick Quit or Force Quit. Only your own processes can be quit. Other users' processes and system processes such as WindowServer are shown with the reason instead, and MemStats never asks for an admin password."
           }
         },
         {
@@ -322,7 +330,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
         <a class="btn primary" href="https://github.com/sown-oss/MemStats/releases/latest">Download for macOS</a>
         <a class="btn" href="https://github.com/sown-oss/MemStats">View on GitHub</a>
       </div>
-      <p class="note">Version 1.2.0. Requires macOS 14 Sonoma or later. Apple Silicon and Intel.</p>
+      <p class="note">Version 1.3.0. Requires macOS 14 Sonoma or later. Apple Silicon and Intel.</p>
     </div>
     <div class="shot">
       <video id="demo" autoplay muted loop playsinline width="480" height="692" poster="assets/demo-poster.webp" aria-label="MemStats popover showing a donut of memory by user, a history chart, top apps and top processes">
@@ -369,16 +377,22 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
           <figure><img src="assets/history-heatmap.webp" width="732" height="392" loading="lazy" decoding="async" alt="History heatmap with one square per sample, green to red by pressure"><figcaption>Heatmap</figcaption></figure>
         </div>
       </div>
-      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their icon and process count. Hover for the bundle path, or switch to a treemap where tile size is memory.</p>
+      <div class="card"><h3>Top Apps</h3><p>Apps ranked by memory with their icon and process count. Hover for the bundle path, or switch to a treemap where tile size is memory. Right-click an app to quit it.</p>
         <div class="shots">
           <figure><img src="assets/apps-list.webp" width="732" height="490" loading="lazy" decoding="async" alt="Top Apps list with app icons, process counts and memory"><figcaption>List</figcaption></figure>
           <figure><img src="assets/apps-treemap.webp" width="732" height="552" loading="lazy" decoding="async" alt="Top Apps treemap where tile size is memory and red tiles grew since the last sample"><figcaption>Treemap</figcaption></figure>
         </div>
       </div>
-      <div class="card"><h3>Top Processes</h3><p>User, PID, process name, icon and memory, for everyone or only the selected user. List or treemap, your choice. One click opens Activity Monitor.</p>
+      <div class="card"><h3>Top Processes</h3><p>User, PID, process name, icon and memory, for everyone or only the selected user. List or treemap, your choice. Right-click to quit, force quit or copy the PID, and one click opens Activity Monitor.</p>
         <div class="shots">
           <figure><img src="assets/processes-list.webp" width="732" height="434" loading="lazy" decoding="async" alt="Top Processes list with user, PID, icon, process name and memory"><figcaption>List</figcaption></figure>
           <figure><img src="assets/processes-treemap.webp" width="732" height="540" loading="lazy" decoding="async" alt="Top Processes treemap with PID, memory and change since the last sample"><figcaption>Treemap</figcaption></figure>
+        </div>
+      </div>
+      <div class="card"><h3>Quit and Force Quit</h3><p>Right-click an app or a process, in the list or the treemap. Quit of an app runs right away, like the Dock. Force Quit and Quit of a background process ask first, right at the row, and Return confirms. The row shows Quitting… until it exits. Only your own processes can be quit; other users' and protected system processes show the reason instead.</p>
+        <div class="shots">
+          <figure><img src="assets/quit-menu.webp" width="732" height="450" loading="lazy" decoding="async" alt="Right-click menu on a process in Top Processes with Quit, Force Quit and Copy PID"><figcaption>Right-click menu</figcaption></figure>
+          <figure><img src="assets/quit-confirm.webp" width="732" height="424" loading="lazy" decoding="async" alt="Confirmation bar in place of the process row, asking to quit node with PID 812, with Cancel and Quit buttons"><figcaption>Confirm at the row</figcaption></figure>
         </div>
       </div>
       <div class="card"><h3>Settings</h3><p>Theme, language, which popover sections to show with their order and style, glass background and opacity, update intervals and how many rows to show. Open it from the gear in the popover.</p>
@@ -432,6 +446,7 @@ footer a.author { text-decoration: underline; text-underline-offset: 3px; text-d
     <details><summary>Why do the numbers differ from Activity Monitor?</summary><p>MemStats uses the same formula for Memory Used and the same pressure signal, but process memory comes from <code>top</code>, which reports in a different unit and accounts shared memory differently. Values are indicative. The gaps are documented in the repository.</p></details>
     <details><summary>Does it collect data or use the network?</summary><p>No. Sampling is local, and history is kept in memory only. "Check for Updates" and "Report a Bug" just open your browser.</p></details>
     <details><summary>How much CPU does it use?</summary><p>Memory sampling is cheap. Each process update runs <code>top</code>, about 1.4 seconds of work, so the process interval is the setting that matters. While the popover is closed, RAM updates at most every 15 seconds and processes every 60.</p></details>
+    <details><summary>Can I quit an app from MemStats?</summary><p>Yes. Right-click it in Top Apps or Top Processes and pick Quit or Force Quit. Only your own processes can be quit. Other users' processes and system processes such as WindowServer are shown with the reason instead, and MemStats never asks for an admin password.</p></details>
     <details><summary>Which languages are supported?</summary><p>English, German, Spanish, French, Japanese, Korean, Simplified Chinese and Vietnamese.</p></details>
     <details><summary>How do I update?</summary><p>There is no automatic update. Open Settings, click Check for Updates, then download the latest release and replace the app.</p></details>
   </section>
