@@ -45,6 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     window.appearance = appState.settings.theme.nsAppearance
     window.onDismiss = { [weak self] in self?.closePopup() }
+    window.onCancel = { [weak self] in
+      guard let self else { return }
+      // Esc cancels a Quit confirmation first, then closes the popup.
+      if self.appState.pendingQuit != nil {
+        self.appState.cancelQuit()
+      } else {
+        self.closePopup()
+      }
+    }
     window.onOpenSettings = { [weak self] in self?.showSettings() }
 
     let background = GlassBackgroundContainerView()
@@ -582,6 +591,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 private final class GlassPopoverWindow: NSPanel {
   var onDismiss: (() -> Void)?
+  var onCancel: (() -> Void)?
   var onOpenSettings: (() -> Void)?
   var isContextMenuTracking = false
 
@@ -600,7 +610,7 @@ private final class GlassPopoverWindow: NSPanel {
   }
 
   override func cancelOperation(_ sender: Any?) {
-    onDismiss?()
+    onCancel?()
   }
 }
 

@@ -501,6 +501,32 @@ struct MemStatsTests {
     #expect(identity.name == "mysqld")
   }
 
+  @Test func appIdentityReadsLaunchPathFromArguments() {
+    func arguments(_ strings: [String]) -> [UInt8] {
+      withUnsafeBytes(of: Int32(1)) { Array($0) } + strings.flatMap { Array($0.utf8) + [0] }
+    }
+
+    #expect(
+      AppIdentityResolver.launchPath(
+        fromArguments: arguments(["/Applications/Edge.app/Contents/MacOS/Edge", "", "Edge"]))
+        == "/Applications/Edge.app/Contents/MacOS/Edge")
+    #expect(AppIdentityResolver.launchPath(fromArguments: arguments(["bin/tool", "tool"])) == nil)
+    #expect(AppIdentityResolver.launchPath(fromArguments: arguments(["", "tool"])) == nil)
+    #expect(AppIdentityResolver.launchPath(fromArguments: [1, 0]) == nil)
+  }
+
+  @Test func appIdentityReadsLaunchPathOfRunningProcess() throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+    process.arguments = ["30"]
+    try process.run()
+    defer { process.terminate() }
+
+    #expect(AppIdentityResolver.launchPath(for: process.processIdentifier) == "/bin/sleep")
+    // Another user's arguments are not readable.
+    #expect(AppIdentityResolver.launchPath(for: 1) == nil)
+  }
+
   @Test func appAggregatorSumsMemoryAndSortsDescending() {
     let code = AppIdentity(id: "app:/Code.app", name: "Code", path: "/Code.app")
     let edge = AppIdentity(id: "app:/Edge.app", name: "Edge", path: "/Edge.app")
@@ -520,6 +546,7 @@ struct MemStatsTests {
     #expect(apps[0].name == "Code")
     #expect(apps[0].bytes == 700)
     #expect(apps[0].processCount == 2)
+    #expect(apps[0].pids == [1, 2])
     #expect(apps[1].name == "Edge")
     #expect(apps[2].name == "unknownd")
     #expect(apps[2].path == nil)

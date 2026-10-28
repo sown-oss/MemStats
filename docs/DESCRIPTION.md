@@ -31,7 +31,7 @@ All inside **one popup window**.
     * `vm.memory_pressure` is not used: it is a reclaim activity counter, not a level
     * Fallback when the sysctl is unavailable: used/total ratio (≥ 75% warning, ≥ 90% critical)
   * `top -l 1 -F -o mem -stats pid,user,mem,command` → processes
-  * `proc_pidpath(pid)` → executable path, used to group processes by app
+  * `proc_pidpath(pid)` → executable path, used to group processes by app (`KERN_PROCARGS2` launch path when the executable was deleted)
 * State:
 
   * `ObservableObject` (single source of truth)
@@ -375,6 +375,7 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * Path inside an `.app` bundle → group by the **outermost** `.app` bundle
   * e.g. `Visual Studio Code.app/.../Code Helper (Renderer).app/...` → `Visual Studio Code`
 * Path outside any bundle → group by executable path (name = executable file name)
+* `proc_pidpath` fails once the executable is deleted, as when an app updates itself while running. The launch path is then read from the process arguments (`sysctl(KERN_PROCARGS2)`, own processes only, absolute paths only), so the app stays grouped with its helpers
 * Path not resolvable → fallback to the `top` command name
 
 ### Display
@@ -384,6 +385,40 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * Hover an app row → tooltip with bundle/executable path
 * When a user is selected, only that user's processes are aggregated
 * Top Apps and Top Processes each have one section title with the row count; when filtered it reads `Top Apps · <user>`
+
+## 8.2 Quit and Force Quit
+
+### Menu
+
+* Right-click a Top Apps or Top Processes row (List) or tile (Treemap): **Quit**, **Force Quit**, and **Copy PID** for processes
+* The whole list row opens the menu, not only its text, and the row under the mouse gets a light background
+* Only the current user's processes can be quit (no admin prompt, no privileged helper). For other users' processes Quit and Force Quit are disabled and the menu shows `Belongs to another user`
+* Protected, never signaled: PID 0 and 1, MemStats itself, `kernel_task`, `launchd`, `loginwindow`, `WindowServer` (menu shows `Protected system process`)
+* An app on a shared Mac can have processes of several users: only the current user's are signaled, and the confirmation says the others keep running
+
+### Confirmation
+
+* Quit of an app (its processes include a regular GUI app, after adding the parent app below) runs right away, like the Dock's Quit: the app can still ask to save its work
+* Force Quit, and Quit of a process that is not a regular GUI app, ask first. The bar replaces the right-clicked row (List) or covers the bottom of the treemap (Treemap): `Quit "node" (PID 123)?`, `Force Quit "Safari"?`, with Cancel and a red Quit / Force Quit button. Return confirms. Esc cancels the confirmation (the panel's `cancelOperation`), a second Esc closes the popup. Force Quit adds `Unsaved changes will be lost.`
+* When the row is no longer listed (it left the top N), the bar shows at the top of the section
+* Inline instead of `NSAlert`: the popup closes when a click lands in another window of the app, so an alert would hide the result
+* The bar goes away when its processes leave the snapshot or the popup closes
+
+### After quitting
+
+* The row dims with a spinner and `Quitting…` (over the treemap: `Quitting "Safari"…`) until the signaled processes exit and a sample no longer lists them. Quit of an app waits only for the app, since its helpers exit with it
+* Still running after 10s, as when the app asks to save or ignores the request: the row shows `"Safari" is still running. It may be asking you to save, or use Force Quit.`
+* Closing the popup clears these states
+
+### Signaling (`ProcessTerminator`)
+
+* The process is read with `sysctl(KERN_PROC_PID)` when Quit is chosen: real uid, start time and short name. It works for every user's processes without privileges
+* A process that started after the snapshot that showed it (the time before `top` ran) is a reused PID and is refused (`The process changed since the last sample. Nothing was quit.`)
+* Right before signaling, each process is read again: same start time, uid equal to `getuid()`, not protected
+* Regular GUI apps: `NSRunningApplication.terminate()` (Quit, same as the Dock) or `forceTerminate()` (Force Quit). Agents, helpers and other processes, or when the request cannot be sent: `kill` with SIGTERM (Quit) or SIGKILL (Force Quit), since agents often ignore the quit request
+* Quit on an app signals only its regular GUI processes when it has any, since its helpers exit with it and the app can still save its work. Otherwise, and always for Force Quit, every own process of the app is signaled
+* When an `.app` group has no regular GUI process, the regular app that launched its processes (parent PID) is added when its bundle is the same, it belongs to the current user and it is not protected. Signaling only the helpers of a running app crashes its tabs or windows while the app keeps running
+* Errors show in red below the row (or over the treemap), with a dismiss button. A process sample runs 0.5s after signaling so the list updates
 
 ---
 
