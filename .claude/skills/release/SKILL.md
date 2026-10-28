@@ -70,8 +70,15 @@ gh release create v<x.y.z> dist/MemStats-<x.y.z>.zip \
   --notes-file dist/MemStats-<x.y.z>-RELEASE_NOTES.md
 ```
 
-Check `gh release view v<x.y.z>`: it is marked Latest and lists the zip. Download the asset and
-compare its SHA-256 with the notes.
+Check that the release is Latest and lists the zip. `gh release view --json` has no Latest
+field, so ask the API, which must print `v<x.y.z>` and the zip name:
+
+```bash
+gh api repos/sown-oss/MemStats/releases/latest --jq '.tag_name, .assets[].name'
+```
+
+Download the asset with `gh release download v<x.y.z> -p 'MemStats-<x.y.z>.zip' -D <scratch>`
+and compare its SHA-256 with the notes.
 
 ## 4. Update the landing page
 
