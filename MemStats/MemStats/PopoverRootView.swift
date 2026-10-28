@@ -548,6 +548,9 @@ struct PopoverRootView: View {
                     MemoryFormat.size(app.bytes)
                   )
                 )
+                // The whole row, not only its text, opens the menu.
+                .contentShape(Rectangle())
+                .modifier(RowHoverHighlight())
                 .contextMenu { appMenu(app) }
                 .modifier(
                   QuitAccessibilityActions(
@@ -653,6 +656,9 @@ struct PopoverRootView: View {
                     MemoryFormat.size(process.rssBytes)
                   )
                 )
+                // The whole row, not only its text, opens the menu.
+                .contentShape(Rectangle())
+                .modifier(RowHoverHighlight())
                 .contextMenu { processMenu(process) }
                 .modifier(
                   QuitAccessibilityActions(
@@ -1070,6 +1076,25 @@ private struct QuitAccessibilityActions: ViewModifier {
     } else {
       content
     }
+  }
+}
+
+/// A light background under the row the mouse is over, so it reads as one right-clickable row.
+private struct RowHoverHighlight: ViewModifier {
+  @State private var isHovered = false
+
+  func body(content: Content) -> some View {
+    content
+      .background {
+        if isHovered {
+          // Slightly wider than the row, so the text does not touch the edge.
+          RoundedRectangle(cornerRadius: 4)
+            .fill(Color.primary.opacity(0.08))
+            .padding(.horizontal, -4)
+            .padding(.vertical, -2)
+        }
+      }
+      .onHover { isHovered = $0 }
   }
 }
 

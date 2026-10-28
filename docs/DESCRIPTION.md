@@ -391,6 +391,7 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 ### Menu
 
 * Right-click a Top Apps or Top Processes row (List) or tile (Treemap): **Quit**, **Force Quit**, and **Copy PID** for processes
+* The whole list row opens the menu, not only its text, and the row under the mouse gets a light background
 * Only the current user's processes can be quit (no admin prompt, no privileged helper). For other users' processes Quit and Force Quit are disabled and the menu shows `Belongs to another user`
 * Protected, never signaled: PID 0 and 1, MemStats itself, `kernel_task`, `launchd`, `loginwindow`, `WindowServer` (menu shows `Protected system process`)
 * An app on a shared Mac can have processes of several users: only the current user's are signaled, and the confirmation says the others keep running
