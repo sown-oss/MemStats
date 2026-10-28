@@ -385,6 +385,30 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * When a user is selected, only that user's processes are aggregated
 * Top Apps and Top Processes each have one section title with the row count; when filtered it reads `Top Apps · <user>`
 
+## 8.2 Quit and Force Quit
+
+### Menu
+
+* Right-click a Top Apps or Top Processes row (List) or tile (Treemap): **Quit**, **Force Quit**, and **Copy PID** for processes
+* Only the current user's processes can be quit (no admin prompt, no privileged helper). For other users' processes Quit and Force Quit are disabled and the menu shows `Belongs to another user`
+* Protected, never signaled: PID 0 and 1, MemStats itself, `kernel_task`, `launchd`, `loginwindow`, `WindowServer` (menu shows `Protected system process`)
+* An app on a shared Mac can have processes of several users: only the current user's are signaled, and the confirmation says the others keep running
+
+### Confirmation
+
+* Both Quit and Force Quit open an inline bar at the top of the section (`Quit "Safari"?`, `Force Quit "node" (PID 123)?`), with Cancel and a red Quit / Force Quit button. Esc cancels the confirmation (the panel's `cancelOperation`), a second Esc closes the popup. Force Quit adds `Unsaved changes will be lost.`
+* Inline instead of `NSAlert`: the popup closes when a click lands in another window of the app, so an alert would hide the result
+* The bar goes away when its processes leave the snapshot or the popup closes
+
+### Signaling (`ProcessTerminator`)
+
+* The process is read with `sysctl(KERN_PROC_PID)` when Quit is chosen: real uid, start time and short name. It works for every user's processes without privileges
+* A process that started after the snapshot that showed it (the time before `top` ran) is a reused PID and is refused (`The process changed since the last sample. Nothing was quit.`)
+* Right before signaling, each process is read again: same start time, uid equal to `getuid()`, not protected
+* Regular GUI apps: `NSRunningApplication.terminate()` (Quit, same as the Dock) or `forceTerminate()` (Force Quit). Agents, helpers and other processes, or when the request cannot be sent: `kill` with SIGTERM (Quit) or SIGKILL (Force Quit), since agents often ignore the quit request
+* Quit on an app signals only its regular GUI processes when it has any, since its helpers exit with it and the app can still save its work. Otherwise, and always for Force Quit, every own process of the app is signaled
+* Errors show in red in the same section, with a dismiss button. A process sample runs 0.5s after signaling so the list updates
+
 ---
 
 ## 9. Native macOS Design Rules

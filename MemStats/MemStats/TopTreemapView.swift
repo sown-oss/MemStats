@@ -9,6 +9,8 @@ struct TopTreemapView: View {
 
   let items: [TreemapItem]
   let language: AppLanguage
+  /// Right-click menu for a tile.
+  let tileMenu: (TreemapItem) -> AnyView
 
   static func fillColor(tone: Int) -> Color {
     let strength = Double(min(abs(tone), TreemapItem.maximumTone)) / Double(TreemapItem.maximumTone)
@@ -28,7 +30,7 @@ struct TopTreemapView: View {
 
   var body: some View {
     GeometryReader { proxy in
-      TreemapTiles(items: items, size: proxy.size, language: language)
+      TreemapTiles(items: items, size: proxy.size, language: language, tileMenu: tileMenu)
     }
     .frame(height: Self.height)
   }
@@ -39,6 +41,7 @@ private struct TreemapTiles: View {
   let items: [TreemapItem]
   let size: CGSize
   let language: AppLanguage
+  let tileMenu: (TreemapItem) -> AnyView
 
   var body: some View {
     let rects = TreemapLayout.layout(
@@ -63,6 +66,7 @@ private struct TreemapTiles: View {
     GeometryReader { proxy in
       TreemapTile(item: item, size: proxy.size)
     }
+    .contextMenu { tileMenu(item) }
   }
 }
 

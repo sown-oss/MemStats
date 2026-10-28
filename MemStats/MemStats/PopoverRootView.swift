@@ -478,6 +478,8 @@ struct PopoverRootView: View {
   private var appSection: some View {
     GroupBox {
       VStack(alignment: .leading, spacing: 8) {
+        quitBanner(for: .topApps)
+
         if processVM.visibleApps.isEmpty {
           Text(listPlaceholder(empty: "No app data available"))
             .font(.footnote)
@@ -486,7 +488,10 @@ struct PopoverRootView: View {
           if settings.topAppsStyle == .treemap {
             TopTreemapView(
               items: processVM.visibleApps.map { appTreemapItem($0) },
-              language: settings.language
+              language: settings.language,
+              tileMenu: { item in
+                AnyView(processVM.visibleApps.first { $0.id == item.id }.map { appMenu($0) })
+              }
             )
             treemapScale
           } else {
@@ -541,6 +546,12 @@ struct PopoverRootView: View {
                   MemoryFormat.size(app.bytes)
                 )
               )
+              .contextMenu { appMenu(app) }
+              .modifier(
+                QuitAccessibilityActions(
+                  isAvailable: processVM.quitAvailability(for: app) == .available,
+                  language: settings.language
+                ) { appState.requestQuit(app: app, mode: $0) })
             }
           }
         }
@@ -561,6 +572,8 @@ struct PopoverRootView: View {
   private var processSection: some View {
     GroupBox {
       VStack(alignment: .leading, spacing: 8) {
+        quitBanner(for: .topProcesses)
+
         if processVM.visibleProcesses.isEmpty {
           Text(listPlaceholder(empty: "No process data available"))
             .font(.footnote)
@@ -569,7 +582,12 @@ struct PopoverRootView: View {
           if settings.topProcessesStyle == .treemap {
             TopTreemapView(
               items: processVM.visibleProcesses.map { processTreemapItem($0) },
-              language: settings.language
+              language: settings.language,
+              tileMenu: { item in
+                AnyView(
+                  processVM.visibleProcesses.first { String($0.pid) == item.id }
+                    .map { processMenu($0) })
+              }
             )
             treemapScale
           } else {
@@ -630,6 +648,12 @@ struct PopoverRootView: View {
                   MemoryFormat.size(process.rssBytes)
                 )
               )
+              .contextMenu { processMenu(process) }
+              .modifier(
+                QuitAccessibilityActions(
+                  isAvailable: processVM.quitAvailability(for: process) == .available,
+                  language: settings.language
+                ) { appState.requestQuit(process: process, mode: $0) })
             }
           }
         }
@@ -648,6 +672,148 @@ struct PopoverRootView: View {
         opacity: settings.glassOpacity
       )
     )
+  }
+
+  private func appMenu(_ app: AppMemoryUsage) -> some View {
+    quitMenu(availability: processVM.quitAvailability(for: app), pid: nil) { mode in
+      appState.requestQuit(app: app, mode: mode)
+    }
+  }
+
+  private func processMenu(_ process: ProcessSnapshot) -> some View {
+    quitMenu(availability: processVM.quitAvailability(for: process), pid: process.pid) { mode in
+      appState.requestQuit(process: process, mode: mode)
+    }
+  }
+
+  /// Right-click menu for the list rows and treemap tiles. Quit only opens the confirmation.
+  @ViewBuilder
+  private func quitMenu(
+    availability: ProcessViewModel.QuitAvailability,
+    pid: Int32?,
+    onQuit: @escaping (ProcessQuitMode) -> Void
+  ) -> some View {
+    Button(AppLocalization.string("Quit", language: settings.language)) {
+      onQuit(.quit)
+    }
+    .disabled(availability != .available)
+    Button(AppLocalization.string("Force Quit", language: settings.language)) {
+      onQuit(.forceQuit)
+    }
+    .disabled(availability != .available)
+    // A menu shows text as a disabled item, which explains why Quit is off.
+    switch availability {
+    case .available:
+      EmptyView()
+    case .otherUser:
+      Text(AppLocalization.string("Belongs to another user", language: settings.language))
+    case .protected:
+      Text(AppLocalization.string("Protected system process", language: settings.language))
+    }
+    if let pid {
+      Divider()
+      Button(AppLocalization.string("Copy PID", language: settings.language)) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(String(pid), forType: .string)
+      }
+    }
+  }
+
+  /// Inline instead of an alert: the popup closes when a click lands in another window, so an
+  /// alert would hide the result.
+  @ViewBuilder
+  private func quitBanner(for section: PopoverSection) -> some View {
+    if let request = appState.pendingQuit, request.section == section {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(quitQuestion(request))
+          .font(.footnote.weight(.semibold))
+          .fixedSize(horizontal: false, vertical: true)
+        if request.mode == .forceQuit {
+          Text(AppLocalization.string("Unsaved changes will be lost.", language: settings.language))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        if request.skipsOtherUsers {
+          Text(
+            AppLocalization.string(
+              "Processes of other users keep running.", language: settings.language)
+          )
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+        }
+        HStack {
+          Spacer()
+          Button(AppLocalization.string("Cancel", language: settings.language)) {
+            appState.cancelQuit()
+          }
+          Button(
+            AppLocalization.string(
+              request.mode == .quit ? "Quit" : "Force Quit", language: settings.language),
+            role: .destructive
+          ) {
+            appState.confirmQuit()
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(.red)
+        }
+        .controlSize(.small)
+      }
+      .padding(8)
+      .background(RoundedRectangle(cornerRadius: 6).fill(Color.red.opacity(0.1)))
+    } else if let failure = appState.quitFailure, failure.section == section {
+      HStack(alignment: .firstTextBaseline, spacing: 6) {
+        Text(quitFailureText(failure.error))
+          .font(.footnote)
+          .foregroundStyle(.red)
+          .fixedSize(horizontal: false, vertical: true)
+        Spacer(minLength: 0)
+        Button {
+          appState.dismissQuitFailure()
+        } label: {
+          Image(systemName: "xmark")
+            .imageScale(.small)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(AppLocalization.string("Dismiss", language: settings.language))
+        .accessibilityLabel(AppLocalization.string("Dismiss", language: settings.language))
+      }
+    }
+  }
+
+  private func quitQuestion(_ request: MemStatsAppState.QuitRequest) -> String {
+    let language = settings.language
+    switch (request.mode, request.pid) {
+    case (.quit, .some(let pid)):
+      return AppLocalization.formatted(
+        "Quit “%@” (PID %lld)?", language: language, request.name, Int64(pid))
+    case (.forceQuit, .some(let pid)):
+      return AppLocalization.formatted(
+        "Force Quit “%@” (PID %lld)?", language: language, request.name, Int64(pid))
+    case (.quit, nil):
+      return AppLocalization.formatted("Quit “%@”?", language: language, request.name)
+    case (.forceQuit, nil):
+      return AppLocalization.formatted("Force Quit “%@”?", language: language, request.name)
+    }
+  }
+
+  private func quitFailureText(_ error: ProcessTerminationError) -> String {
+    let language = settings.language
+    switch error {
+    case .notRunning:
+      return AppLocalization.string("The process is no longer running.", language: language)
+    case .processChanged:
+      return AppLocalization.string(
+        "The process changed since the last sample. Nothing was quit.", language: language)
+    case .notOwned:
+      return AppLocalization.string("You can only quit your own processes.", language: language)
+    case .protected:
+      return AppLocalization.string(
+        "This process is protected and cannot be quit.", language: language)
+    case .signalFailed(let code):
+      return AppLocalization.formatted(
+        "Could not quit the process: %@", language: language, String(cString: strerror(code)))
+    }
   }
 
   @ViewBuilder
@@ -772,6 +938,28 @@ struct PopoverRootView: View {
       .foregroundStyle(.secondary)
       .lineLimit(1)
       .fixedSize()
+    }
+  }
+}
+
+/// VoiceOver cannot reach the context menu of a row read as one element, so Quit and Force
+/// Quit are offered as its actions too.
+private struct QuitAccessibilityActions: ViewModifier {
+  let isAvailable: Bool
+  let language: AppLanguage
+  let onQuit: (ProcessQuitMode) -> Void
+
+  func body(content: Content) -> some View {
+    if isAvailable {
+      content
+        .accessibilityAction(named: AppLocalization.string("Quit", language: language)) {
+          onQuit(.quit)
+        }
+        .accessibilityAction(named: AppLocalization.string("Force Quit", language: language)) {
+          onQuit(.forceQuit)
+        }
+    } else {
+      content
     }
   }
 }

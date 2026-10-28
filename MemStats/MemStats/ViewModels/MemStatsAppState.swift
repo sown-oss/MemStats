@@ -25,6 +25,23 @@ final class MemStatsAppState: ObservableObject {
     }
   }
 
+  /// A Quit or Force Quit waiting for the user to confirm it in its section.
+  struct QuitRequest: Equatable {
+    let name: String
+    /// Shown for a single process, `nil` for an app.
+    let pid: Int32?
+    let mode: ProcessQuitMode
+    let section: PopoverSection
+    let targets: [ProcessTarget]
+    /// The app also has processes of other users, which keep running.
+    let skipsOtherUsers: Bool
+  }
+
+  struct QuitFailure: Equatable {
+    let section: PopoverSection
+    let error: ProcessTerminationError
+  }
+
   /// History keeps about this many seconds of samples, whatever the interval.
   nonisolated static let historyWindowSeconds = 600
   nonisolated static let maxHistorySamples = 600
@@ -38,6 +55,8 @@ final class MemStatsAppState: ObservableObject {
   @Published private(set) var growthHints: [MemoryGrowthHint] = []
   /// Whether `root` and `_*` system users are included in the sampled processes.
   @Published private(set) var showsSystemUsers: Bool
+  @Published private(set) var pendingQuit: QuitRequest?
+  @Published private(set) var quitFailure: QuitFailure?
 
   let memoryVM: MemoryViewModel
   let processVM: ProcessViewModel
@@ -47,6 +66,7 @@ final class MemStatsAppState: ObservableObject {
 
   private let memoryService: any MemoryStatsProviding
   private let processService: any ProcessSnapshotProviding
+  private let processTerminator: any ProcessTerminating
   private let defaults: UserDefaults
   private let timerQueue = DispatchQueue(label: "com.chungxon.memstats.timers", qos: .utility)
   /// Separate queues, so a slow `top` run never delays a memory sample.
@@ -77,7 +97,9 @@ final class MemStatsAppState: ObservableObject {
     defaults: UserDefaults = .standard,
     settings: SettingsStore? = nil,
     memoryService: (any MemoryStatsProviding)? = nil,
-    processService: (any ProcessSnapshotProviding)? = nil
+    processService: (any ProcessSnapshotProviding)? = nil,
+    processTerminator: (any ProcessTerminating)? = nil,
+    currentUser: String = NSUserName()
   ) {
     let settings = settings ?? SettingsStore(defaults: defaults)
     self.settings = settings
@@ -86,10 +108,12 @@ final class MemStatsAppState: ObservableObject {
     processVM = ProcessViewModel(
       maxSamples: Self.historyCapacity(interval: settings.processInterval),
       topAppsLimit: settings.topAppsCount,
-      topProcessesLimit: settings.topProcessesCount
+      topProcessesLimit: settings.topProcessesCount,
+      currentUser: currentUser
     )
     self.memoryService = memoryService ?? MemoryStatsService()
     self.processService = processService ?? ProcessSnapshotService()
+    self.processTerminator = processTerminator ?? ProcessTerminator()
     self.defaults = defaults
     // Shown by default to match Activity Monitor's all-users view.
     showsSystemUsers = defaults.object(forKey: Self.showsSystemUsersKey) as? Bool ?? true
@@ -157,6 +181,10 @@ final class MemStatsAppState: ObservableObject {
     guard nextMode != samplingMode else { return }
 
     samplingMode = nextMode
+    if !isPresented {
+      pendingQuit = nil
+      quitFailure = nil
+    }
     // Opening samples right away (unless one ran moments ago). Closing only switches to the
     // idle interval, counted from the last sample.
     restartTimers(waitsFullInterval: !isPresented)
@@ -167,6 +195,97 @@ final class MemStatsAppState: ObservableObject {
   func sampleImmediately() {
     memorySampler.sampleNow()
     processSampler.sampleNow()
+  }
+
+  /// Asks to confirm quitting one process from Top Processes.
+  func requestQuit(process: ProcessSnapshot, mode: ProcessQuitMode) {
+    guard processVM.quitAvailability(for: process) == .available else { return }
+    requestQuit(
+      name: processVM.displayName(for: process),
+      pid: process.pid,
+      pids: [process.pid],
+      mode: mode,
+      section: .topProcesses,
+      skipsOtherUsers: false
+    )
+  }
+
+  /// Asks to confirm quitting the current user's processes of an app from Top Apps.
+  func requestQuit(app: AppMemoryUsage, mode: ProcessQuitMode) {
+    let pids = processVM.quitPIDs(for: app)
+    guard !pids.isEmpty else { return }
+    requestQuit(
+      name: app.name,
+      pid: nil,
+      pids: pids,
+      mode: mode,
+      section: .topApps,
+      skipsOtherUsers: processVM.hasOtherUsersProcesses(app)
+    )
+  }
+
+  func cancelQuit() {
+    pendingQuit = nil
+  }
+
+  func dismissQuitFailure() {
+    quitFailure = nil
+  }
+
+  /// Signals the confirmed request, then samples again so the lists drop what quit.
+  func confirmQuit() {
+    guard let request = pendingQuit else { return }
+    pendingQuit = nil
+    do {
+      try processTerminator.terminate(request.targets, mode: request.mode)
+    } catch {
+      quitFailure = QuitFailure(section: request.section, error: error)
+    }
+    // Apps quit asynchronously, so give them a moment before sampling.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+      self?.processSampler.sampleNow()
+    }
+  }
+
+  /// Captures each process as it is now. A process that started after the snapshot that showed
+  /// it is not the one the user picked, so it is left out.
+  private func requestQuit(
+    name: String,
+    pid: Int32?,
+    pids: [Int32],
+    mode: ProcessQuitMode,
+    section: PopoverSection,
+    skipsOtherUsers: Bool
+  ) {
+    quitFailure = nil
+    let snapshotTime = processVM.snapshotTakenAt ?? .distantPast
+    var targets: [ProcessTarget] = []
+    var firstError: ProcessTerminationError?
+    for pid in pids {
+      guard let target = processTerminator.target(pid: pid) else {
+        firstError = firstError ?? .notRunning
+        continue
+      }
+      guard target.startDate <= snapshotTime else {
+        firstError = firstError ?? .processChanged
+        continue
+      }
+      targets.append(target)
+    }
+
+    guard !targets.isEmpty else {
+      pendingQuit = nil
+      quitFailure = QuitFailure(section: section, error: firstError ?? .notRunning)
+      return
+    }
+    pendingQuit = QuitRequest(
+      name: name,
+      pid: pid,
+      mode: mode,
+      section: section,
+      targets: targets,
+      skipsOtherUsers: skipsOtherUsers
+    )
   }
 
   /// Interval for a timer: the setting while the popover is open, at least the kind's
@@ -318,9 +437,19 @@ final class MemStatsAppState: ObservableObject {
         targetUsedBytes: targetUsedBytes,
         sampledAt: sampledAt
       )
+      dropPendingQuitIfGone()
       refreshGrowthHints()
     }
     refreshDonutSlices()
+  }
+
+  /// A confirmation for processes that already exited would only signal nothing, so it goes.
+  private func dropPendingQuitIfGone() {
+    guard let pendingQuit else { return }
+    let pids = Set(pendingQuit.targets.map(\.pid))
+    if !processVM.allProcesses.contains(where: { pids.contains($0.pid) }) {
+      self.pendingQuit = nil
+    }
   }
 
   /// Only users in the current snapshot are checked, so a user that disappeared does not

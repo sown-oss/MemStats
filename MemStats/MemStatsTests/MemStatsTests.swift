@@ -520,6 +520,7 @@ struct MemStatsTests {
     #expect(apps[0].name == "Code")
     #expect(apps[0].bytes == 700)
     #expect(apps[0].processCount == 2)
+    #expect(apps[0].pids == [1, 2])
     #expect(apps[1].name == "Edge")
     #expect(apps[2].name == "unknownd")
     #expect(apps[2].path == nil)

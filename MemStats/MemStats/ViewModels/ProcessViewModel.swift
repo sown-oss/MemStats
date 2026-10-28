@@ -3,6 +3,13 @@ import Foundation
 
 @MainActor
 final class ProcessViewModel: ObservableObject {
+  /// Whether Quit and Force Quit are offered for a row.
+  enum QuitAvailability: Equatable {
+    case available
+    case otherUser
+    case protected
+  }
+
   struct UserMemoryHistorySample: Sendable, Equatable {
     let timestamp: Date
     let user: String
@@ -40,11 +47,23 @@ final class ProcessViewModel: ObservableObject {
   private var appIdentities: [Int32: AppIdentity] = [:]
   /// PROCESS column names for the visible rows, so a command is parsed once, not per render.
   private var displayNameByCommand: [String: String] = [:]
+  /// When the current snapshot was requested, before `top` ran. Every process in it started
+  /// before this.
+  private(set) var snapshotTakenAt: Date?
+  /// Built on the first Quit lookup after each sample.
+  private var processByPID: [Int32: ProcessSnapshot]?
+  private let currentUser: String
 
-  init(maxSamples: Int = 120, topAppsLimit: Int = 8, topProcessesLimit: Int = 8) {
+  init(
+    maxSamples: Int = 120,
+    topAppsLimit: Int = 8,
+    topProcessesLimit: Int = 8,
+    currentUser: String = NSUserName()
+  ) {
     self.maxSamples = max(maxSamples, 1)
     self.topAppsLimit = max(topAppsLimit, 0)
     self.topProcessesLimit = max(topProcessesLimit, 0)
+    self.currentUser = currentUser
   }
 
   /// Changes the row counts and re-slices the current snapshot, without a new sample.
@@ -77,6 +96,8 @@ final class ProcessViewModel: ObservableObject {
     previousAppBytes = nil
     self.appIdentities = appIdentities
     allProcesses = snapshots
+    snapshotTakenAt = sampledAt
+    processByPID = nil
     if !hasSampled {
       hasSampled = true
     }
@@ -162,6 +183,44 @@ final class ProcessViewModel: ObservableObject {
     }
     guard let previous = previousAppBytes?[app.id] else { return nil }
     return Self.change(from: previous, to: app.bytes)
+  }
+
+  /// Only the current user's own processes can be signaled without privileges. The `top` user
+  /// name is the full account name, and the uid is checked again before quitting.
+  func quitAvailability(for process: ProcessSnapshot) -> QuitAvailability {
+    guard process.user == currentUser else { return .otherUser }
+    let name = displayName(for: process)
+    return ProcessTerminator.isProtected(pid: process.pid, name: name) ? .protected : .available
+  }
+
+  func quitAvailability(for app: AppMemoryUsage) -> QuitAvailability {
+    if !quitPIDs(for: app).isEmpty {
+      return .available
+    }
+    let ownsAny = app.pids.contains { process(pid: $0)?.user == currentUser }
+    return ownsAny ? .protected : .otherUser
+  }
+
+  /// The app's processes that Quit signals: the current user's, minus protected ones.
+  func quitPIDs(for app: AppMemoryUsage) -> [Int32] {
+    app.pids.filter { pid in
+      guard let process = process(pid: pid) else { return false }
+      return quitAvailability(for: process) == .available
+    }
+  }
+
+  func hasOtherUsersProcesses(_ app: AppMemoryUsage) -> Bool {
+    app.pids.contains { pid in
+      process(pid: pid).map { $0.user != currentUser } ?? false
+    }
+  }
+
+  private func process(pid: Int32) -> ProcessSnapshot? {
+    if processByPID == nil {
+      processByPID = Dictionary(
+        allProcesses.map { ($0.pid, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+    return processByPID?[pid]
   }
 
   private static func change(from previous: UInt64, to current: UInt64) -> Double? {

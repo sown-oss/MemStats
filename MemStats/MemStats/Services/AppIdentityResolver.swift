@@ -57,7 +57,7 @@ enum AppMemoryAggregator {
   ) -> [AppMemoryUsage] {
     var identityByID: [String: AppIdentity] = [:]
     var bytesByID: [String: UInt64] = [:]
-    var countByID: [String: Int] = [:]
+    var pidsByID: [String: [Int32]] = [:]
 
     for process in processes {
       let identity =
@@ -65,7 +65,7 @@ enum AppMemoryAggregator {
         ?? AppIdentityResolver.fallbackIdentity(forCommand: process.command)
       identityByID[identity.id] = identity
       bytesByID[identity.id, default: 0] += process.rssBytes
-      countByID[identity.id, default: 0] += 1
+      pidsByID[identity.id, default: []].append(process.pid)
     }
 
     let apps =
@@ -76,7 +76,8 @@ enum AppMemoryAggregator {
           name: identity.name,
           path: identity.path,
           bytes: bytesByID[identity.id, default: 0],
-          processCount: countByID[identity.id, default: 0]
+          processCount: pidsByID[identity.id, default: []].count,
+          pids: pidsByID[identity.id, default: []]
         )
       }
       .sorted { lhs, rhs in
