@@ -8,6 +8,7 @@ struct ProcessQuitTests {
   private final class StubProcessTerminator: ProcessTerminating {
     var targetsByPID: [Int32: ProcessTarget] = [:]
     var parentAppsByBundle: [String: [ProcessTarget]] = [:]
+    var appPIDs: Set<Int32> = []
     var error: ProcessTerminationError?
     private(set) var parentAppBundles: [String] = []
     private(set) var terminatedTargets: [[ProcessTarget]] = []
@@ -22,14 +23,21 @@ struct ProcessQuitTests {
       return parentAppsByBundle[bundlePath] ?? []
     }
 
+    func isApp(_ target: ProcessTarget) -> Bool {
+      appPIDs.contains(target.pid)
+    }
+
+    /// Like the real one, Quit only signals the apps when there are any.
     func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode)
-      throws(ProcessTerminationError)
+      throws(ProcessTerminationError) -> [ProcessTarget]
     {
       terminatedTargets.append(targets)
       terminatedModes.append(mode)
       if let error {
         throw error
       }
+      let apps = targets.filter(isApp)
+      return mode == .quit && !apps.isEmpty ? apps : targets
     }
   }
 
@@ -291,7 +299,8 @@ struct ProcessQuitTests {
     #expect(appState.pendingQuit == nil)
     #expect(
       appState.quitFailure
-        == MemStatsAppState.QuitFailure(section: .topProcesses, error: .processChanged))
+        == MemStatsAppState.QuitFailure(
+          section: .topProcesses, rowID: "100", name: "a", reason: .failed(.processChanged)))
   }
 
   @MainActor @Test func quitFailureIsShownInItsSection() throws {
@@ -309,12 +318,15 @@ struct ProcessQuitTests {
 
     appState.requestQuit(app: usage, mode: .quit)
     #expect(appState.pendingQuit?.section == .topApps)
+    #expect(appState.pendingQuit?.rowID == "app:/A.app")
     #expect(appState.pendingQuit?.skipsOtherUsers == false)
     appState.confirmQuit()
 
     #expect(
       appState.quitFailure
-        == MemStatsAppState.QuitFailure(section: .topApps, error: .notRunning))
+        == MemStatsAppState.QuitFailure(
+          section: .topApps, rowID: "app:/A.app", name: "A", reason: .failed(.notRunning)))
+    #expect(appState.quitsInProgress.isEmpty)
     appState.dismissQuitFailure()
     #expect(appState.quitFailure == nil)
   }
@@ -418,5 +430,108 @@ struct ProcessQuitTests {
     #expect(appState.pendingQuit != nil)
     appState.setPopoverPresented(false)
     #expect(appState.pendingQuit == nil)
+  }
+
+  @MainActor @Test func appQuitRunsWithoutConfirmation() throws {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    terminator.targetsByPID[101] = Self.target(pid: 101)
+    terminator.appPIDs = [100]
+    let app = AppIdentity(id: "app:/A.app", name: "A", path: "/A.app")
+    let appState = Self.makeAppState(terminator: terminator, suiteName: "MemStatsTests.QuitDirect")
+    appState.applySample(
+      stats: nil,
+      processes: [
+        ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "A"),
+        ProcessSnapshot(user: "alice", pid: 101, rssBytes: 400, command: "A Helper"),
+      ],
+      appIdentities: [100: app, 101: app]
+    )
+    let usage = try #require(appState.processVM.visibleApps.first)
+
+    appState.requestQuit(app: usage, mode: .quit)
+
+    #expect(appState.pendingQuit == nil)
+    #expect(terminator.terminatedTargets == [[Self.target(pid: 100), Self.target(pid: 101)]])
+    #expect(appState.isQuitting(section: .topApps, rowID: "app:/A.app"))
+    // Only the app is waited for, since its helpers exit with it.
+    #expect(appState.quitsInProgress.first?.targets == [Self.target(pid: 100)])
+
+    appState.requestQuit(app: usage, mode: .forceQuit)
+
+    #expect(appState.pendingQuit?.mode == .forceQuit)
+    #expect(terminator.terminatedTargets.count == 1)
+  }
+
+  @MainActor @Test func confirmedQuitShowsItsRowAsQuittingUntilItExits() {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    let process = ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "/bin/a")
+    let other = ProcessSnapshot(user: "alice", pid: 200, rssBytes: 400, command: "/bin/c")
+    let appState = Self.makeAppState(terminator: terminator, suiteName: "MemStatsTests.Quitting")
+    appState.applySample(stats: nil, processes: [process, other])
+
+    appState.requestQuit(process: process, mode: .quit)
+    #expect(appState.pendingQuit?.rowID == "100")
+    appState.confirmQuit()
+    #expect(appState.isQuitting(section: .topProcesses, rowID: "100"))
+    #expect(!appState.isQuitting(section: .topApps, rowID: "100"))
+
+    // Exited, but this sample still lists it, so the row stays dimmed until the next one.
+    terminator.targetsByPID[100] = nil
+    appState.applySample(stats: nil, processes: [process, other])
+    #expect(appState.isQuitting(section: .topProcesses, rowID: "100"))
+
+    appState.applySample(stats: nil, processes: [other])
+    #expect(appState.quitsInProgress.isEmpty)
+    #expect(appState.quitFailure == nil)
+  }
+
+  @MainActor @Test func quitStillRunningAfterTimeoutFailsAtItsRow() {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    terminator.appPIDs = [100]
+    let process = ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "/bin/a")
+    let appState = Self.makeAppState(terminator: terminator, suiteName: "MemStatsTests.QuitStuck")
+    appState.applySample(stats: nil, processes: [process])
+
+    appState.requestQuit(process: process, mode: .quit)
+    appState.applySample(
+      stats: nil, processes: [process],
+      sampledAt: Date().addingTimeInterval(MemStatsAppState.quitTimeout / 2))
+    #expect(appState.isQuitting(section: .topProcesses, rowID: "100"))
+    #expect(appState.quitFailure == nil)
+
+    appState.applySample(
+      stats: nil, processes: [process],
+      sampledAt: Date().addingTimeInterval(MemStatsAppState.quitTimeout + 1))
+
+    #expect(appState.quitsInProgress.isEmpty)
+    #expect(
+      appState.quitFailure
+        == MemStatsAppState.QuitFailure(
+          section: .topProcesses, rowID: "100", name: "a", reason: .stillRunning))
+
+    // The user answered the save dialog and the app quit, so the failure goes.
+    terminator.targetsByPID[100] = nil
+    appState.applySample(stats: nil, processes: [])
+    #expect(appState.quitFailure == nil)
+  }
+
+  @MainActor @Test func quittingRowsAreClearedWhenPopoverCloses() {
+    let terminator = StubProcessTerminator()
+    terminator.targetsByPID[100] = Self.target(pid: 100)
+    terminator.appPIDs = [100]
+    let process = ProcessSnapshot(user: "alice", pid: 100, rssBytes: 500, command: "/bin/a")
+    let appState = Self.makeAppState(
+      terminator: terminator, suiteName: "MemStatsTests.QuitClose", processes: [process])
+    appState.applySample(stats: nil, processes: [process])
+    appState.setPopoverPresented(true)
+
+    appState.requestQuit(process: process, mode: .quit)
+    #expect(!appState.quitsInProgress.isEmpty)
+    appState.setPopoverPresented(false)
+
+    #expect(appState.quitsInProgress.isEmpty)
   }
 }

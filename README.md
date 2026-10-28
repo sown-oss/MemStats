@@ -36,7 +36,7 @@ After that, MemStats opens normally. It lives in the menu bar only (no Dock icon
 
 ## Quit Apps and Processes
 
-Right-click an app in Top Apps or a process in Top Processes (list or treemap) and choose Quit or Force Quit, then confirm in the bar that appears in the section. Quit asks the app to quit like the Dock does, so it can still ask to save your work. Force Quit stops it right away.
+Right-click an app in Top Apps or a process in Top Processes (list or treemap) and choose Quit or Force Quit. Quit asks the app to quit like the Dock does, so it can still ask to save your work. Force Quit stops it right away, and it asks first, right at the row (press Return to confirm or Esc to cancel). Quit of a background process asks first too. The row shows Quitting… until it exits, and tells you if it is still running after 10 seconds.
 
 Only your own processes can be quit. Processes of other users and protected system processes (such as `WindowServer` and `loginwindow`) are shown but cannot be quit from MemStats.
 

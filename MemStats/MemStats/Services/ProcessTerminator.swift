@@ -38,8 +38,13 @@ protocol ProcessTerminating {
   /// The running app of `bundlePath` that launched these processes, when none of them is that
   /// app. Empty when one of them is a regular app or no parent matches.
   func parentApps(of targets: [ProcessTarget], bundlePath: String) -> [ProcessTarget]
-  /// Checks every target again, then signals them. Throws only when nothing was signaled.
+  /// Whether the target is an app with a Dock icon, which Quit asks like the Dock does.
+  func isApp(_ target: ProcessTarget) -> Bool
+  /// Checks every target again, then signals them. Returns the ones signaled, and throws only
+  /// when nothing was signaled.
+  @discardableResult
   func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode) throws(ProcessTerminationError)
+    -> [ProcessTarget]
 }
 
 struct ProcessTerminator: ProcessTerminating {
@@ -100,7 +105,13 @@ struct ProcessTerminator: ProcessTerminating {
     return info
   }
 
+  func isApp(_ target: ProcessTarget) -> Bool {
+    Self.regularApp(pid: target.pid) != nil
+  }
+
+  @discardableResult
   func terminate(_ targets: [ProcessTarget], mode: ProcessQuitMode) throws(ProcessTerminationError)
+    -> [ProcessTarget]
   {
     var firstError: ProcessTerminationError?
     var checked: [ProcessTarget] = []
@@ -116,20 +127,20 @@ struct ProcessTerminator: ProcessTerminating {
     // Quit only asks the app itself when there is one: its helpers exit with it, and a graceful
     // quit lets the app save its work instead of having its helpers killed under it. Force Quit
     // signals everything, so no helper is left behind.
-    let apps = checked.filter { Self.regularApp(pid: $0.pid) != nil }
-    let signaled = mode == .quit && !apps.isEmpty ? apps : checked
-    var signaledCount = 0
-    for target in signaled {
+    let apps = checked.filter(isApp)
+    var signaled: [ProcessTarget] = []
+    for target in mode == .quit && !apps.isEmpty ? apps : checked {
       do {
         try signal(target, mode: mode)
-        signaledCount += 1
+        signaled.append(target)
       } catch {
         firstError = firstError ?? error
       }
     }
-    if signaledCount == 0 {
+    if signaled.isEmpty {
       throw firstError ?? .notRunning
     }
+    return signaled
   }
 
   private static func regularApp(pid: Int32) -> NSRunningApplication? {

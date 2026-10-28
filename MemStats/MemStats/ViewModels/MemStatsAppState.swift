@@ -25,22 +25,45 @@ final class MemStatsAppState: ObservableObject {
     }
   }
 
-  /// A Quit or Force Quit waiting for the user to confirm it in its section.
+  /// A Quit or Force Quit waiting for the user to confirm it at its row.
   struct QuitRequest: Equatable {
     let name: String
     /// Shown for a single process, `nil` for an app.
     let pid: Int32?
     let mode: ProcessQuitMode
     let section: PopoverSection
+    /// The row the request came from: the app's id, or the PID for a process.
+    let rowID: String
     let targets: [ProcessTarget]
     /// The app also has processes of other users, which keep running.
     let skipsOtherUsers: Bool
   }
 
   struct QuitFailure: Equatable {
+    enum Reason: Equatable {
+      case failed(ProcessTerminationError)
+      /// Signaled, but still running after `quitTimeout`, as when an app asks to save first.
+      case stillRunning
+    }
+
     let section: PopoverSection
-    let error: ProcessTerminationError
+    let rowID: String
+    let name: String
+    let reason: Reason
   }
+
+  /// A signaled row, shown as quitting until its processes exit.
+  struct QuitProgress: Equatable {
+    let section: PopoverSection
+    let rowID: String
+    let name: String
+    /// Only the processes that were signaled: Quit of an app waits for the app, not its helpers.
+    let targets: [ProcessTarget]
+    let startedAt: Date
+  }
+
+  /// How long a row shows as quitting before it is reported as still running.
+  nonisolated static let quitTimeout: TimeInterval = 10
 
   /// History keeps about this many seconds of samples, whatever the interval.
   nonisolated static let historyWindowSeconds = 600
@@ -57,6 +80,9 @@ final class MemStatsAppState: ObservableObject {
   @Published private(set) var showsSystemUsers: Bool
   @Published private(set) var pendingQuit: QuitRequest?
   @Published private(set) var quitFailure: QuitFailure?
+  @Published private(set) var quitsInProgress: [QuitProgress] = []
+  /// The processes behind a `.stillRunning` failure, so it goes away once they exit.
+  private var stillRunningTargets: [ProcessTarget] = []
 
   let memoryVM: MemoryViewModel
   let processVM: ProcessViewModel
@@ -184,6 +210,7 @@ final class MemStatsAppState: ObservableObject {
     if !isPresented {
       pendingQuit = nil
       quitFailure = nil
+      quitsInProgress = []
     }
     // Opening samples right away (unless one ran moments ago). Closing only switches to the
     // idle interval, counted from the last sample.
@@ -197,7 +224,7 @@ final class MemStatsAppState: ObservableObject {
     processSampler.sampleNow()
   }
 
-  /// Asks to confirm quitting one process from Top Processes.
+  /// Quits one process from Top Processes, after a confirmation unless it is an app.
   func requestQuit(process: ProcessSnapshot, mode: ProcessQuitMode) {
     guard processVM.quitAvailability(for: process) == .available else { return }
     requestQuit(
@@ -207,11 +234,13 @@ final class MemStatsAppState: ObservableObject {
       bundlePath: nil,
       mode: mode,
       section: .topProcesses,
+      rowID: Self.quitRowID(for: process),
       skipsOtherUsers: false
     )
   }
 
-  /// Asks to confirm quitting the current user's processes of an app from Top Apps.
+  /// Quits the current user's processes of an app from Top Apps, after a confirmation unless
+  /// one of them is the app itself.
   func requestQuit(app: AppMemoryUsage, mode: ProcessQuitMode) {
     let pids = processVM.quitPIDs(for: app)
     guard !pids.isEmpty else { return }
@@ -222,8 +251,22 @@ final class MemStatsAppState: ObservableObject {
       bundlePath: app.bundlePath,
       mode: mode,
       section: .topApps,
+      rowID: Self.quitRowID(for: app),
       skipsOtherUsers: processVM.hasOtherUsersProcesses(app)
     )
+  }
+
+  /// Same ids as the treemap tiles, so a row and its tile share the quit state.
+  nonisolated static func quitRowID(for process: ProcessSnapshot) -> String {
+    String(process.pid)
+  }
+
+  nonisolated static func quitRowID(for app: AppMemoryUsage) -> String {
+    app.id
+  }
+
+  func isQuitting(section: PopoverSection, rowID: String) -> Bool {
+    quitsInProgress.contains { $0.section == section && $0.rowID == rowID }
   }
 
   func cancelQuit() {
@@ -234,18 +277,39 @@ final class MemStatsAppState: ObservableObject {
     quitFailure = nil
   }
 
-  /// Signals the confirmed request, then samples again so the lists drop what quit.
   func confirmQuit() {
     guard let request = pendingQuit else { return }
     pendingQuit = nil
+    performQuit(request)
+  }
+
+  /// Signals the request and shows its row as quitting, then samples again so the lists drop
+  /// what quit.
+  private func performQuit(_ request: QuitRequest) {
+    quitsInProgress.removeAll { $0.section == request.section && $0.rowID == request.rowID }
     do {
-      try processTerminator.terminate(request.targets, mode: request.mode)
+      let signaled = try processTerminator.terminate(request.targets, mode: request.mode)
+      quitsInProgress.append(
+        QuitProgress(
+          section: request.section,
+          rowID: request.rowID,
+          name: request.name,
+          targets: signaled,
+          startedAt: Date()
+        ))
     } catch {
-      quitFailure = QuitFailure(section: request.section, error: error)
+      quitFailure = QuitFailure(
+        section: request.section, rowID: request.rowID, name: request.name,
+        reason: .failed(error))
+      return
     }
     // Apps quit asynchronously, so give them a moment before sampling.
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
       self?.processSampler.sampleNow()
+    }
+    // The process interval can be longer than the timeout, so check once without a sample.
+    DispatchQueue.main.asyncAfter(deadline: .now() + Self.quitTimeout + 0.1) { [weak self] in
+      self?.refreshQuitsInProgress(now: Date(), listedPIDs: nil)
     }
   }
 
@@ -259,6 +323,7 @@ final class MemStatsAppState: ObservableObject {
     bundlePath: String?,
     mode: ProcessQuitMode,
     section: PopoverSection,
+    rowID: String,
     skipsOtherUsers: Bool
   ) {
     quitFailure = nil
@@ -279,20 +344,30 @@ final class MemStatsAppState: ObservableObject {
 
     guard !targets.isEmpty else {
       pendingQuit = nil
-      quitFailure = QuitFailure(section: section, error: firstError ?? .notRunning)
+      quitFailure = QuitFailure(
+        section: section, rowID: rowID, name: name, reason: .failed(firstError ?? .notRunning))
       return
     }
     if let bundlePath {
       targets += processTerminator.parentApps(of: targets, bundlePath: bundlePath)
     }
-    pendingQuit = QuitRequest(
+    let request = QuitRequest(
       name: name,
       pid: pid,
       mode: mode,
       section: section,
+      rowID: rowID,
       targets: targets,
       skipsOtherUsers: skipsOtherUsers
     )
+    // Quit of an app is what the Dock's Quit does, and the app can still ask to save, so it
+    // runs right away. Force Quit and Quit of a background process ask first.
+    if mode == .quit, targets.contains(where: processTerminator.isApp) {
+      pendingQuit = nil
+      performQuit(request)
+    } else {
+      pendingQuit = request
+    }
   }
 
   /// Interval for a timer: the setting while the popover is open, at least the kind's
@@ -445,6 +520,7 @@ final class MemStatsAppState: ObservableObject {
         sampledAt: sampledAt
       )
       dropPendingQuitIfGone()
+      refreshQuitsInProgress(now: sampledAt, listedPIDs: Set(processVM.allProcesses.map(\.pid)))
       refreshGrowthHints()
     }
     refreshDonutSlices()
@@ -457,6 +533,48 @@ final class MemStatsAppState: ObservableObject {
     if !processVM.allProcesses.contains(where: { pids.contains($0.pid) }) {
       self.pendingQuit = nil
     }
+  }
+
+  /// A row stops showing as quitting once its processes exit and the sample no longer lists
+  /// them. One still running after `quitTimeout` turns into a failure at its row. `listedPIDs`
+  /// is `nil` when there is no new sample.
+  private func refreshQuitsInProgress(now: Date, listedPIDs: Set<Int32>?) {
+    // An app that asked to save quits once the user answers, and the failure is then wrong.
+    if quitFailure?.reason == .stillRunning, !stillRunningTargets.contains(where: isRunning) {
+      quitFailure = nil
+    }
+    guard !quitsInProgress.isEmpty else { return }
+    var failure: QuitFailure?
+    var failureTargets: [ProcessTarget] = []
+    let remaining = quitsInProgress.filter { progress in
+      let isRunning = progress.targets.contains(where: isRunning)
+      let timedOut = now.timeIntervalSince(progress.startedAt) >= Self.quitTimeout
+      guard isRunning else {
+        // An exited process stays listed until the next sample, so its row stays dimmed.
+        let isListed = progress.targets.contains { listedPIDs?.contains($0.pid) ?? true }
+        return isListed && !timedOut
+      }
+      if timedOut {
+        failure = QuitFailure(
+          section: progress.section, rowID: progress.rowID, name: progress.name,
+          reason: .stillRunning)
+        failureTargets = progress.targets
+        return false
+      }
+      return true
+    }
+    if remaining != quitsInProgress {
+      quitsInProgress = remaining
+    }
+    if let failure {
+      quitFailure = failure
+      stillRunningTargets = failureTargets
+    }
+  }
+
+  /// The same process the user picked, not a later one with its PID.
+  private func isRunning(_ target: ProcessTarget) -> Bool {
+    processTerminator.target(pid: target.pid)?.startMicroseconds == target.startMicroseconds
   }
 
   /// Only users in the current snapshot are checked, so a user that disappeared does not

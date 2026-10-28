@@ -397,9 +397,17 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 
 ### Confirmation
 
-* Both Quit and Force Quit open an inline bar at the top of the section (`Quit "Safari"?`, `Force Quit "node" (PID 123)?`), with Cancel and a red Quit / Force Quit button. Esc cancels the confirmation (the panel's `cancelOperation`), a second Esc closes the popup. Force Quit adds `Unsaved changes will be lost.`
+* Quit of an app (its processes include a regular GUI app, after adding the parent app below) runs right away, like the Dock's Quit: the app can still ask to save its work
+* Force Quit, and Quit of a process that is not a regular GUI app, ask first. The bar replaces the right-clicked row (List) or covers the bottom of the treemap (Treemap): `Quit "node" (PID 123)?`, `Force Quit "Safari"?`, with Cancel and a red Quit / Force Quit button. Return confirms. Esc cancels the confirmation (the panel's `cancelOperation`), a second Esc closes the popup. Force Quit adds `Unsaved changes will be lost.`
+* When the row is no longer listed (it left the top N), the bar shows at the top of the section
 * Inline instead of `NSAlert`: the popup closes when a click lands in another window of the app, so an alert would hide the result
 * The bar goes away when its processes leave the snapshot or the popup closes
+
+### After quitting
+
+* The row dims with a spinner and `Quitting…` (over the treemap: `Quitting "Safari"…`) until the signaled processes exit and a sample no longer lists them. Quit of an app waits only for the app, since its helpers exit with it
+* Still running after 10s, as when the app asks to save or ignores the request: the row shows `"Safari" is still running. It may be asking you to save, or use Force Quit.`
+* Closing the popup clears these states
 
 ### Signaling (`ProcessTerminator`)
 
@@ -409,7 +417,7 @@ maxSamples = min(600, ceil(600 / memoryInterval)) // 120 at the default 5s
 * Regular GUI apps: `NSRunningApplication.terminate()` (Quit, same as the Dock) or `forceTerminate()` (Force Quit). Agents, helpers and other processes, or when the request cannot be sent: `kill` with SIGTERM (Quit) or SIGKILL (Force Quit), since agents often ignore the quit request
 * Quit on an app signals only its regular GUI processes when it has any, since its helpers exit with it and the app can still save its work. Otherwise, and always for Force Quit, every own process of the app is signaled
 * When an `.app` group has no regular GUI process, the regular app that launched its processes (parent PID) is added when its bundle is the same, it belongs to the current user and it is not protected. Signaling only the helpers of a running app crashes its tabs or windows while the app keeps running
-* Errors show in red in the same section, with a dismiss button. A process sample runs 0.5s after signaling so the list updates
+* Errors show in red below the row (or over the treemap), with a dismiss button. A process sample runs 0.5s after signaling so the list updates
 
 ---
 
