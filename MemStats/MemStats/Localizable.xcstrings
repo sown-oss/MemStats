@@ -347,7 +347,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ ist in den letzten %lld Samples um %@ gestiegen"
+            "value" : "%1$@ ist in den letzten %3$lld Samples um %2$@ gestiegen"
           }
         },
         "es" : {
@@ -365,13 +365,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "過去%lldサンプルで%@が%@増加"
+            "value" : "過去%3$lldサンプルで%1$@が%2$@増加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "최근 %lld개 샘플에서 %@이(가) %@ 증가함"
+            "value" : "최근 %3$lld개 샘플에서 %1$@이(가) %2$@ 증가함"
           }
         },
         "vi" : {
@@ -383,7 +383,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在最近 %lld 个样本中 %@ 增加了 %@"
+            "value" : "在最近 %3$lld 个样本中 %1$@ 增加了 %2$@"
           }
         }
       }
