@@ -2,6 +2,12 @@
 
 All notable changes to MemStats are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- MemStats could crash in German, Japanese, Korean or Simplified Chinese when History showed a hint that a user's memory kept growing.
+
 ## [1.3.0] - 28/10/2026
 
 Quit and Force Quit apps and processes from the popover.
