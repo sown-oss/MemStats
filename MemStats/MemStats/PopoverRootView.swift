@@ -356,8 +356,8 @@ struct PopoverRootView: View {
             .accessibilityLabel("Memory history")
             .accessibilityValue(historyAccessibilityValue)
             .onAppear(perform: followLatestHistory)
-            // The popup window is reused, so reopening it switches to active sampling
-            // instead of firing onAppear again.
+            // The content is built while sampling is still idle, so this also runs right after
+            // onAppear on each open. Harmless, and it covers content that outlives a close.
             .onChange(of: appState.samplingMode) {
               if appState.samplingMode == .active {
                 followLatestHistory()
