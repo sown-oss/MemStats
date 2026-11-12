@@ -7,6 +7,7 @@ All notable changes to MemStats are documented here.
 ### Fixed
 
 - MemStats could crash in German, Japanese, Korean or Simplified Chinese when History showed a hint that a user's memory kept growing.
+- MemStats' own memory could keep growing while the popover was closed, after it was opened once (seen on macOS 27). The popover now frees its content when it closes.
 
 ## [1.3.0] - 28/10/2026
 
