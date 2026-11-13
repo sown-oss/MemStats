@@ -4,6 +4,10 @@ All notable changes to MemStats are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Report a Bug opens a bug report form that also fills in your language and main settings, and asks for a crash report when MemStats crashed.
+
 ### Fixed
 
 - MemStats could crash in German, Japanese, Korean or Simplified Chinese when History showed a hint that a user's memory kept growing.

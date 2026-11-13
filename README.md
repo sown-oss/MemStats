@@ -58,7 +58,9 @@ There is no automatic update. Open Settings and click "Check for Updates…" to 
 
 ## Report a Bug
 
-Open Settings and click "Report a Bug…". It opens a new GitHub issue with your MemStats version, macOS version and Mac model already filled in, so you only describe the problem. You can also [open an issue](https://github.com/sown-oss/MemStats/issues/new) directly.
+Open Settings and click "Report a Bug…". It opens the GitHub bug report form with your MemStats version, macOS version, Mac model, language and main settings already filled in, so you only describe the problem. You can also [open the form](https://github.com/sown-oss/MemStats/issues/new?template=bug_report.yml) directly.
+
+For a crash, attach the crash report: open Console > Crash Reports (or `~/Library/Logs/DiagnosticReports`), find `MemStats-*.ips`, zip it and drag the zip into the form.
 
 ## Build From Source
 
