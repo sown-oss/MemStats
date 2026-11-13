@@ -81,24 +81,14 @@ xcodebuild -project MemStats/MemStats.xcodeproj -scheme MemStats -destination 'p
 
 ## Resource Usage
 
-Snapshot from Activity Monitor (Debug build, running under Xcode `debugserver`, on 2026-10-03):
+Measured on MemStats 1.3.1 (Release) on 2026-11-13: M1 MacBook Pro, 16 GB, macOS 26.6, memory every 3 s and processes every 5 s, popover closed, sampled once a minute for 30 minutes.
 
-| Metric | Value | Assessment |
+| Metric | Value | Notes |
 | --- | --- | --- |
-| Real Memory | 45.1 MB | Normal. A minimal SwiftUI + AppKit app usually sits at 30 to 60 MB. This is all resident pages, so it also includes clean file-backed pages (framework code, fonts, assets) and graphics memory, which is why it is larger than Private + Shared |
-| Private Memory | 4.9 MB | Very low. This is the memory the app allocates itself and the most meaningful number |
-| Shared Memory | 12.8 MB | Normal. Frameworks shared with other processes |
-| Virtual Memory | 415.44 GB | Not a concern. Reserved address space (shared cache, GPU, malloc zones), not physical RAM. Typical for any app on Apple Silicon |
-| % CPU | 0.20 | Good for an app that samples periodically |
-| Recent hangs | 0 | Good |
+| Memory (footprint) | 35 MB, flat | The Memory column in Activity Monitor. A minimal SwiftUI + AppKit app usually sits at 30 to 60 MB |
+| % CPU | 0.16 average | CPU time divided by run time. Shorter intervals, mostly the top processes one, use more |
 
-Notes:
-
-* A Release build is expected to be slightly lighter, since there is no debugger attached and optimizations are enabled.
-* One snapshot is not enough to rule out leaks. To check long-running behavior:
-  1. Leave the app running for 30 to 60 minutes and confirm Real/Private Memory stays stable.
-  2. Open and close the popover several times and confirm memory returns to its previous level.
-  3. If memory keeps growing, use Instruments (Leaks / Allocations) or the Xcode Memory Graph Debugger.
+Opening the popover builds its charts and lists, so memory rises while it is open and drops back when it closes. To check for leaks on your Mac, leave MemStats running with the popover closed and confirm `footprint MemStats` stays flat, then open and close the popover a few times and confirm it returns to the same level.
 
 ## License
 
