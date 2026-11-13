@@ -1,0 +1,64 @@
+name: Bug report
+description: A crash, high memory or CPU use, wrong numbers or a display problem.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tip: Settings > Report a Bug… in MemStats fills in Environment for you.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of problem
+      options:
+        - Crash
+        - MemStats uses a lot of memory or CPU
+        - Wrong or missing numbers
+        - Display or text problem
+        - Something else
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the popover
+        2. ...
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Report a Bug… in MemStats Settings fills this in. Otherwise, add at least the MemStats and macOS versions.
+      placeholder: |
+        - MemStats: 1.3.0 (4)
+        - macOS: Version 26.6 (Build 25G72)
+        - Mac: Mac15,6 (arm64)
+        - Language: System (macOS: en-US)
+        - Settings: memory 5 s, processes 10 s, History line
+    validations:
+      required: true
+  - type: textarea
+    id: crash-report
+    attributes:
+      label: Crash report
+      description: |
+        For a crash: open Console > Crash Reports (or `~/Library/Logs/DiagnosticReports`), find `MemStats-*.ips`, zip it and drag the zip here.
+  - type: textarea
+    id: usage
+    attributes:
+      label: Memory or CPU readings
+      description: |
+        For high memory or CPU, paste the output of `footprint $(pgrep -U $(id -u) -x MemStats)` and `ps -xo %cpu=,rss=,comm= | grep MemStats`, and say if the popover was open.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Optional. Drag images here.

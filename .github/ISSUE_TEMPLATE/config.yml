@@ -1,0 +1,2 @@
+# Keep blank issues: Report a Bug in MemStats 1.3.0 and earlier opens one with a filled-in body.
+blank_issues_enabled: true
