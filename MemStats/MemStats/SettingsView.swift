@@ -148,7 +148,7 @@ struct SettingsView: View {
           Text("Feedback")
           Spacer()
           Button("Report a Bug…") {
-            openURL(AppLinks.bugReportURL())
+            openURL(bugReportURL)
           }
         }
       } footer: {
@@ -277,6 +277,18 @@ struct SettingsView: View {
     Binding(
       get: { appState.showsSystemUsers },
       set: { appState.setShowsSystemUsers($0) }
+    )
+  }
+
+  /// Adds the language and the settings that change sampling or the popover, in English for
+  /// the maintainer.
+  private var bugReportURL: URL {
+    let language = settings.language == .system ? "System" : settings.language.locale.identifier
+    let glass = settings.glassBackground ? "on" : "off"
+    return AppLinks.bugReportURL(
+      language: language,
+      settings: "memory \(settings.memoryInterval) s, processes \(settings.processInterval) s, "
+        + "History \(settings.historyChartStyle.rawValue), glass \(glass)"
     )
   }
 

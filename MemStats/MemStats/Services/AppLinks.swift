@@ -20,39 +20,44 @@ nonisolated enum AppLinks {
     Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
   }
 
-  /// A new-issue page with the template and environment filled in, so the reporter only
-  /// describes the problem.
+  /// The issue form in `.github/ISSUE_TEMPLATE`, and the id of its Environment field.
+  static let bugReportTemplate = "bug_report.yml"
+  static let bugReportEnvironmentField = "environment"
+
+  /// The bug report form with Environment filled in, so the reporter only describes the problem.
+  /// `language` is the app language setting, and `settings` a short summary of the settings
+  /// that change sampling or the popover.
   static func bugReportURL(
     appVersion: String = appVersion,
     appBuild: String = appBuild,
     osVersion: String = ProcessInfo.processInfo.operatingSystemVersionString,
     model: String = hardwareModel(),
-    architecture: String = architecture
+    architecture: String = architecture,
+    language: String = "System",
+    preferredLanguages: [String] = Locale.preferredLanguages,
+    settings: String? = nil
   ) -> URL {
-    let body = """
-      **Describe the bug**
-
-
-      **Steps to reproduce**
-      1.
-
-      **Expected behavior**
-
-
-      **Environment**
-      - MemStats: \(appVersion) (\(appBuild))
-      - macOS: \(osVersion)
-      - Mac: \(model) (\(architecture))
-      """
+    let systemLanguages =
+      preferredLanguages.isEmpty ? "unknown" : preferredLanguages.prefix(3).joined(separator: ", ")
+    var environment = [
+      "- MemStats: \(appVersion) (\(appBuild))",
+      "- macOS: \(osVersion)",
+      "- Mac: \(model) (\(architecture))",
+      "- Language: \(language) (macOS: \(systemLanguages))",
+    ]
+    if let settings {
+      environment.append("- Settings: \(settings)")
+    }
 
     var components = URLComponents(
       url: repositoryURL.appendingPathComponent("issues/new"),
       resolvingAgainstBaseURL: false
     )!
     components.queryItems = [
+      URLQueryItem(name: "template", value: bugReportTemplate),
       URLQueryItem(name: "title", value: "[Bug] "),
       URLQueryItem(name: "labels", value: "bug"),
-      URLQueryItem(name: "body", value: body),
+      URLQueryItem(name: bugReportEnvironmentField, value: environment.joined(separator: "\n")),
     ]
     // URLComponents leaves "+" as is, and GitHub would read it as a space.
     components.percentEncodedQuery = components.percentEncodedQuery?

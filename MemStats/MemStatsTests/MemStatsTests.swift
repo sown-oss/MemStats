@@ -1662,25 +1662,53 @@ struct MemStatsTests {
     #expect(AppLinks.sponsorURL.absoluteString == "https://github.com/sown-oss/MemStats/")
   }
 
-  @Test func bugReportURLPrefillsTitleLabelAndEnvironment() throws {
+  @Test func bugReportURLPrefillsTheFormEnvironment() throws {
     let url = AppLinks.bugReportURL(
       appVersion: "1.2+beta",
       appBuild: "7",
       osVersion: "Version 15.1 (Build 24B83)",
       model: "Mac15,6",
-      architecture: "arm64"
+      architecture: "arm64",
+      language: "zh-Hans",
+      preferredLanguages: ["zh-Hans-CN", "ja-CN", "en-CN", "fr-CN"],
+      settings: "memory 5 s, processes 10 s, History line, glass on"
     )
     #expect(url.absoluteString.hasPrefix("https://github.com/sown-oss/MemStats/issues/new?"))
 
     let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
     let values = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
+    #expect(values["template"] == "bug_report.yml")
     #expect(values["title"] == "[Bug] ")
     #expect(values["labels"] == "bug")
-    let body = try #require(values["body"])
-    #expect(body.contains("- MemStats: 1.2+beta (7)"))
+    #expect(values["body"] == nil)
+    let environment = try #require(values["environment"])
+    #expect(
+      environment == """
+        - MemStats: 1.2+beta (7)
+        - macOS: Version 15.1 (Build 24B83)
+        - Mac: Mac15,6 (arm64)
+        - Language: zh-Hans (macOS: zh-Hans-CN, ja-CN, en-CN)
+        - Settings: memory 5 s, processes 10 s, History line, glass on
+        """)
     #expect(url.absoluteString.contains("1.2%2Bbeta"))
-    #expect(body.contains("- macOS: Version 15.1 (Build 24B83)"))
-    #expect(body.contains("- Mac: Mac15,6 (arm64)"))
+  }
+
+  @Test func bugReportURLSkipsSettingsAndHandlesNoSystemLanguages() throws {
+    let url = AppLinks.bugReportURL(preferredLanguages: [])
+    let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+    let environment = try #require(items.first { $0.name == "environment" }?.value)
+    #expect(environment.hasSuffix("- Language: System (macOS: unknown)"))
+    #expect(!environment.contains("- Settings:"))
+  }
+
+  /// The form lives outside the app, so check the names the URL relies on still match it.
+  @Test func bugReportFormHasTheFieldTheAppFillsIn() throws {
+    let repository = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let form = repository.appendingPathComponent(
+      ".github/ISSUE_TEMPLATE/\(AppLinks.bugReportTemplate)")
+    let text = try String(contentsOf: form, encoding: .utf8)
+    #expect(text.contains("id: \(AppLinks.bugReportEnvironmentField)\n"))
   }
 
   /// Hosts SettingsView the way AppDelegate does. Some Form rows (LabeledContent) made AppKit
