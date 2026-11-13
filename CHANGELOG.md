@@ -2,7 +2,9 @@
 
 All notable changes to MemStats are documented here.
 
-## [Unreleased]
+## [1.3.1] - 13/11/2026
+
+Fixes a crash in four languages and MemStats' own memory growth on macOS 27, and adds a bug report form.
 
 ### Changed
 
