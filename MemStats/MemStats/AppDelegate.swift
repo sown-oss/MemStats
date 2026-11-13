@@ -4,7 +4,12 @@ import ServiceManagement
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  private static let popupArrowHeight: CGFloat = 10
+
   private var popupWindow: GlassPopoverWindow?
+  /// Built when the popup opens and released after it closes, so nothing in it keeps updating
+  /// while it is hidden.
+  private var popupContent: NSView?
   private var outsideClickMonitor: Any?
   private var localClickMonitor: Any?
   private var statusItem: NSStatusItem?
@@ -31,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func makePopupWindow() -> GlassPopoverWindow {
     let size = PopoverRootView.popoverSize
-    let arrowHeight: CGFloat = 10
+    let arrowHeight = Self.popupArrowHeight
     let window = GlassPopoverWindow(
       contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height + arrowHeight),
       styleMask: [.borderless, .nonactivatingPanel],
@@ -62,6 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     background.preferenceEnabled = appState.settings.glassBackground
     background.glassOpacity = appState.settings.glassOpacity
     window.contentView = background
+    return window
+  }
+
+  private func installPopupContent(in window: GlassPopoverWindow) {
+    guard popupContent == nil, let background = window.contentView else { return }
 
     let content = NSHostingView(
       rootView: PopoverRootView(
@@ -79,9 +89,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       content.leadingAnchor.constraint(equalTo: background.leadingAnchor),
       content.trailingAnchor.constraint(equalTo: background.trailingAnchor),
       content.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-      content.topAnchor.constraint(equalTo: background.topAnchor, constant: arrowHeight),
+      content.topAnchor.constraint(
+        equalTo: background.topAnchor, constant: Self.popupArrowHeight),
     ])
-    return window
+    popupContent = content
+  }
+
+  /// Waits for the current event to finish, since closing can start from a button or menu
+  /// inside the content. Reopening before then keeps the content.
+  private func scheduleRemovePopupContent() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.popupWindow?.isVisible != true else { return }
+      self.popupContent?.removeFromSuperview()
+      self.popupContent = nil
+    }
   }
 
   private func configureStatusItem() {
@@ -296,6 +317,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     guard let buttonWindow = button.window else { return }
+    // After the guard, so content is never left in a window that does not open.
+    installPopupContent(in: window)
     let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
     let visibleFrame = buttonWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
     let x = min(
@@ -314,6 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     popupWindow?.orderOut(nil)
     removeOutsideClickMonitors()
     appState.setPopoverPresented(false)
+    scheduleRemovePopupContent()
   }
 
   private func removeOutsideClickMonitors() {
