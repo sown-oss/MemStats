@@ -1,0 +1,8 @@
+# Response headers of the Workers static assets. This file is not served.
+# Same browser cache as the Pages site had (4 hours) for images, video and
+# robots.txt. HTML keeps max-age=0 so a deploy shows at once.
+/assets/*
+  Cache-Control: public, max-age=14400, must-revalidate
+
+/robots.txt
+  Cache-Control: public, max-age=14400, must-revalidate
