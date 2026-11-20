@@ -158,3 +158,5 @@ iOSInjectionProject/
 .tmp-home
 .derivedData
 dist/
+
+.wrangler/

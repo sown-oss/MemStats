@@ -1,0 +1,19 @@
+{
+  // The MemStats website: the static files at the root of this branch, no
+  // Worker code. Deploy: Workers Builds on each push to `page`. The name must
+  // match the Worker in the dashboard.
+  "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+  "name": "memstats-site",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": ".",
+    "not_found_handling": "404-page",
+    // /privacy serves privacy.html, /privacy.html redirects to /privacy.
+    "html_handling": "auto-trailing-slash"
+  },
+  "routes": [{ "pattern": "memstats.chungxon.dev", "custom_domain": true }],
+  // One copy of the site: no *.workers.dev host and no preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true }
+}
