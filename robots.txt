@@ -1,4 +1,6 @@
 User-agent: *
+# Content Signals (contentsignals.org): search, AI answers and AI training are all allowed.
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 
 Sitemap: https://memstats.chungxon.dev/sitemap.xml
