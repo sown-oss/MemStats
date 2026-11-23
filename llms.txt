@@ -1,0 +1,26 @@
+# MemStats
+
+> MemStats is a free, open source (MIT) memory monitor for the macOS menu bar. It shows who is using the RAM: used memory split by user account, top apps with their helper processes grouped in, top processes, memory pressure, swap and a short history, all in one popover. Version 1.3.1, macOS 14 Sonoma or later, Apple Silicon and Intel.
+
+- Memory only. It does not show CPU, GPU, disk, network, sensors or fans. Stats and iStat Menus cover those, and MemStats can run next to them.
+- Made for Macs shared by several user accounts (labs, build machines, family Macs), and useful on any Mac.
+- About 35 MB of memory and 0.2% CPU with the popover closed. No network requests: sampling is local and history stays in memory.
+- Distributed through GitHub Releases, not the Mac App Store, because it needs the App Sandbox off to run `top` and read other users' processes. The build is not notarized yet, so the first launch needs "Open Anyway" in System Settings, Privacy and Security.
+- Languages: English, German, Spanish, French, Japanese, Korean, Simplified Chinese and Vietnamese.
+
+## Pages
+
+- [Home](https://memstats.chungxon.dev/): features, comparison with Stats, iStat Menus and Menu Stats, install steps and FAQ
+- [Privacy](https://memstats.chungxon.dev/privacy): no data collected, no network use
+- [Terms](https://memstats.chungxon.dev/terms)
+
+## Download and source
+
+- [Latest release](https://github.com/sown-oss/MemStats/releases/latest)
+- [Source code and README](https://github.com/sown-oss/MemStats): how the numbers are measured and how they differ from Activity Monitor
+- [Changelog](https://github.com/sown-oss/MemStats/blob/main/CHANGELOG.md)
+- [Report a bug](https://github.com/sown-oss/MemStats/issues/new)
+
+## Maker
+
+- [Chung Xon](https://chungxon.dev/): software engineer in Ho Chi Minh City, Vietnam
